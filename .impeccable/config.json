@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "roboto",
+        "createdAt": "2026-10-28T13:19:57.720Z",
+        "reason": "Roboto is the native Android system font; the app must use zero external fonts to work offline (brief constraint)"
+      }
+    ]
+  }
+}
