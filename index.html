@@ -112,6 +112,7 @@ input[type=text]:focus{border-color:var(--lamp);outline:0}
 #prjList li{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;background:var(--raise2);border-radius:11px;padding:4px 4px 4px 12px}
 #prjList .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #prjList small{display:block;color:var(--mute);font-size:12px}
+#update{position:fixed;left:12px;right:12px;bottom:calc(var(--nav) + 12px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:520px;margin:0 auto;padding:8px 6px 8px 16px;border-radius:14px;background:var(--raise2);border:1px solid var(--lamp);font-weight:500}
 #toast{position:fixed;left:50%;bottom:calc(var(--nav) + 78px);transform:translateX(-50%);max-width:90vw;padding:10px 14px;border-radius:12px;background:#2a2d36;color:var(--ink);font-size:14px;z-index:30;pointer-events:none;text-align:center}
 #toast.bad{background:#4a1f1b;color:#ffd2cc}
 
@@ -123,7 +124,7 @@ input[type=text]:focus{border-color:var(--lamp);outline:0}
 @media (max-height:520px){:root{--nav:50px}.bar button{gap:0}.top{min-height:38px}}
 
 body.proj #app{display:block;background:#000}
-body.proj .top,body.proj .panel,body.proj .bar,body.proj .ov,body.proj #handles,body.proj .chip,body.proj .empty-view,body.proj #toast,body.proj #sheet{display:none!important}
+body.proj .top,body.proj .panel,body.proj .bar,body.proj .ov,body.proj #handles,body.proj .chip,body.proj .empty-view,body.proj #toast,body.proj #update,body.proj #sheet{display:none!important}
 body.proj main{display:block}
 body.proj .view{position:fixed;inset:0;z-index:50;background:#000}
 body.proj .wrap{outline:0}
@@ -140,7 +141,7 @@ body.proj,body.proj *{cursor:none!important}
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffb340" stroke-width="2" stroke-linejoin="round"><path d="M4 7l15-3-2 15-12-1z"/></svg>
       <span>Proiettore</span>
     </div>
-    <button class="ghost" id="btnProjects">Progetti</button>
+    <div style="display:flex"><button class="ghost" id="btnInstall" hidden style="color:var(--lamp)">Installa</button><button class="ghost" id="btnProjects">Progetti</button></div>
   </header>
 
   <main>
@@ -222,10 +223,12 @@ body.proj,body.proj *{cursor:none!important}
     <ul id="prjList"></ul>
     <p class="hint" id="prjEmpty">Nessun progetto salvato. Le modifiche correnti si salvano da sole in questo browser.</p>
     <div class="row wrapr"><button class="btn" id="prjExport">Esporta JSON</button><button class="btn" id="prjImport">Importa JSON</button></div>
+    <p class="hint" id="prjVer"></p>
     <p class="hint" id="prjNote">Video e foto non vengono salvati: ricaricali a ogni sessione.</p>
   </div>
 </div>
 <div id="toast" hidden role="status"></div>
+<div id="update" hidden role="alert"><span>Nuova versione disponibile</span><span style="display:flex;gap:4px;align-items:center"><button class="btn lamp" id="btnUpdate">Aggiorna</button><button class="ghost" id="btnUpdateX" aria-label="Più tardi" style="min-width:44px;padding:0">✕</button></span></div>
 <input type="file" id="fileMedia" accept="video/*,image/*" hidden>
 <input type="file" id="fileRef" accept="image/*" hidden>
 <input type="file" id="fileJson" accept="application/json,.json" hidden>
@@ -236,6 +239,7 @@ body.proj,body.proj *{cursor:none!important}
 const $ = id => document.getElementById(id);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const APP_VERSION = '1.1.0'; // tieni uguale a VERSION in sw.js
 const CW = 1280, CH = 720, CYCLE = 12;
 const KINDS = ['grid', 'particles', 'scan', 'waves', 'text', 'file'];
 const LS_CUR = 'proiettore:current', LS_PRJ = 'proiettore:projects';
@@ -804,6 +808,7 @@ function renderProjects() {
 }
 $('btnProjects').onclick = () => {
   $('prjNote').textContent = storeOK ? 'Video e foto non vengono salvati: ricaricali a ogni sessione.' : 'Il salvataggio nel browser non è disponibile: usa Esporta JSON.';
+  $('prjVer').textContent = 'Versione ' + APP_VERSION;
   $('prjSave').disabled = !storeOK; renderProjects(); $('sheet').hidden = false;
 };
 $('sheetClose').onclick = () => $('sheet').hidden = true;
@@ -1014,8 +1019,43 @@ if (!gl) { $('glNote').hidden = false; $('glNote').textContent = NOGL ? 'Canvas 
 setCanvasSize(); syncUI(); setTab('content'); layout();
 requestAnimationFrame(frame);
 
+/* ---------- installazione e aggiornamenti (PWA) ---------- */
+let installEv = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('btnInstall').hidden = false; });
+window.addEventListener('appinstalled', () => { installEv = null; $('btnInstall').hidden = true; toast('App installata'); });
+$('btnInstall').onclick = async () => {
+  if (!installEv) return;
+  try { installEv.prompt(); await installEv.userChoice; } catch (e) {}
+  installEv = null; $('btnInstall').hidden = true;
+};
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', () => { try { navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) {} });
+  let reg = null, userAsked = false;
+  const showUpdate = w => {
+    $('update').hidden = false;
+    $('btnUpdate').onclick = () => {
+      userAsked = true; $('btnUpdate').disabled = true;
+      try { w.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
+      setTimeout(() => location.reload(), 3000); // se il cambio non arriva, ricarica comunque
+    };
+    $('btnUpdateX').onclick = () => { $('update').hidden = true; };
+  };
+  const check = () => { if (reg) reg.update().catch(() => {}); };
+  // ricarica solo se l'utente ha toccato Aggiorna: mai a metà proiezione
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (userAsked) location.reload(); });
+  window.addEventListener('load', () => {
+    try {
+      navigator.serviceWorker.register('sw.js').then(r => {
+        reg = r;
+        if (r.waiting && navigator.serviceWorker.controller) showUpdate(r.waiting);
+        r.addEventListener('updatefound', () => {
+          const w = r.installing;
+          if (w) w.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) showUpdate(w); });
+        });
+      }).catch(() => {});
+    } catch (e) {}
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  setInterval(check, 3600000);
 }
 })();
 </script>
