@@ -1,8 +1,8 @@
 // Network-first: online carica sempre la versione nuova, la cache serve solo offline.
 // Alza VERSION (e APP_VERSION in index.html) a ogni rilascio: il browser vede sw.js cambiato e mostra il banner.
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 const CACHE = 'proiettore-' + VERSION;
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 self.addEventListener('install', e => {
   // 'reload' salta la cache HTTP, così la nuova versione non memorizza file vecchi
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).catch(() => {}));
