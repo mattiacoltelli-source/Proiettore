@@ -50,10 +50,15 @@ main{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}
 .h.sel i{background:var(--lamp);border-color:var(--lamp);transform:scale(1.2)}
 .h.m i{border-color:var(--ice)}
 .h.m.sel i{background:var(--ice)}
+.h.ctr i{width:26px;height:26px;background:rgba(255,179,64,.22);border-color:var(--lamp)}
+.h.rot i{background:var(--lamp);border-color:var(--lamp)}
+.h.m.ctr i{background:rgba(95,212,255,.22);border-color:var(--ice)}
+.h.m.rot i{background:var(--ice);border-color:var(--ice)}
 .h b{position:absolute;left:30px;top:2px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
 .chip{position:absolute;left:10px;top:10px;padding:6px 10px;border-radius:999px;background:rgba(20,22,27,.85);color:var(--mute);font-size:12px}
 #zoomReset{left:auto;right:10px;top:auto;bottom:10px;min-height:36px;color:var(--ink);cursor:pointer}
 #glNote{top:auto;bottom:10px}
+#lnRot{stroke:var(--lamp);stroke-width:1.5}
 #lnOthers{stroke:#fff;stroke-width:1;stroke-dasharray:4 4;opacity:.3}
 #surfBar{position:absolute;left:8px;right:8px;top:8px;z-index:3;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 #surfBar::-webkit-scrollbar{display:none}
@@ -87,6 +92,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .row.wrapr{flex-wrap:wrap}
 .seg{display:flex;background:var(--raise2);border-radius:11px;padding:3px;gap:3px}
 .seg button{min-height:38px;min-width:44px;padding:0 14px;border-radius:9px;color:var(--mute);font-weight:500}
+.seg-wrap{flex-wrap:wrap;margin-bottom:6px}
 .seg button[aria-pressed=true]{background:var(--lamp);color:var(--lamp-ink)}
 .btn{min-height:44px;padding:0 16px;border-radius:11px;background:var(--raise2);font-weight:500}
 .btn:active{background:var(--line)}
@@ -159,7 +165,7 @@ body.proj,body.proj *{cursor:none!important}
   <main>
     <section class="view" id="view" aria-label="Anteprima">
       <div class="wrap" id="wrap"><canvas id="stage"></canvas></div>
-      <svg class="ov" aria-hidden="true"><path id="lnOthers" hidden></path><polygon id="lnQuad" hidden></polygon><path id="lnMesh" hidden></path><polygon id="lnMask" hidden></polygon></svg>
+      <svg class="ov" aria-hidden="true"><path id="lnOthers" hidden></path><path id="lnRot" hidden></path><polygon id="lnQuad" hidden></polygon><path id="lnMesh" hidden></path><polygon id="lnMask" hidden></polygon></svg>
       <div id="handles"></div>
       <div id="surfBar" role="toolbar" aria-label="Superfici"></div>
       <div id="surfMenu" hidden><button class="btn" id="mVis">Nascondi</button><button class="btn" id="mDup">Duplica</button><button class="btn danger" id="mDel">Elimina</button></div>
@@ -196,6 +202,14 @@ body.proj,body.proj *{cursor:none!important}
           <div class="seg" id="segMode"><button data-mode="quad" aria-pressed="true">Quad</button><button data-mode="mesh" aria-pressed="false">Mesh</button></div>
           <div class="seg" id="segN" hidden><button data-n="3">3×3</button><button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button></div>
         </div>
+        <div id="boxShapeW">
+          <div class="hint" style="margin-top:4px">Forma</div>
+          <div class="seg seg-wrap" id="segShapeW"><button data-r="free" aria-pressed="true">Libera</button><button data-r="auto">Raddrizza</button><button data-r="1">1:1</button><button data-r="1.3333333">4:3</button><button data-r="1.7777778">16:9</button><button data-r="0.75">3:4</button><button data-r="0.5625">9:16</button></div>
+          <div id="blkShapeW" hidden>
+            <div class="sl"><label for="sWSize">Dimensione</label><output id="oWSize"></output><input type="range" id="sWSize" min="3" max="180" step="1"></div>
+            <div class="sl"><label for="sWRot">Rotazione</label><output id="oWRot"></output><input type="range" id="sWRot" min="-180" max="180" step="1"></div>
+          </div>
+        </div>
         <div class="row" id="rowSmooth" hidden><span style="font-weight:500">Curve morbide</span><button class="sw" id="swSmooth" role="switch" aria-checked="true" aria-label="Curve morbide"></button></div>
         <div class="row"><span style="font-weight:500">Griglia di calibrazione</span><button class="sw" id="swCalib" role="switch" aria-checked="false" aria-label="Griglia di calibrazione"></button></div>
         <div class="row">
@@ -210,6 +224,12 @@ body.proj,body.proj *{cursor:none!important}
 
       <div class="pane" data-pane="mask" hidden>
         <div class="row"><span style="font-weight:500">Maschera attiva</span><button class="sw" id="swMask" role="switch" aria-checked="true" aria-label="Maschera attiva"></button></div>
+        <div class="hint">Forma</div>
+        <div class="seg seg-wrap" id="segShapeM"><button data-k="free" aria-pressed="true">Libera</button><button data-k="rect:1">1:1</button><button data-k="rect:1.3333333">4:3</button><button data-k="rect:1.7777778">16:9</button><button data-k="rect:0.5625">9:16</button><button data-k="circle">Cerchio</button><button data-k="tri">Triangolo</button><button data-k="hex">Esagono</button></div>
+        <div id="blkShapeM" hidden>
+          <div class="sl"><label for="sMSize">Dimensione</label><output id="oMSize"></output><input type="range" id="sMSize" min="3" max="180" step="1"></div>
+          <div class="sl"><label for="sMRot">Rotazione</label><output id="oMRot"></output><input type="range" id="sMRot" min="-180" max="180" step="1"></div>
+        </div>
         <div class="sl"><label for="sFeather">Sfumatura del bordo</label><output id="oFeather"></output><input type="range" id="sFeather" min="0" max="30" step="1"></div>
         <p class="hint" id="maskHint"></p>
         <button class="btn lamp" id="btnLive2" style="width:100%">Traccia dal vivo</button>
@@ -256,7 +276,7 @@ body.proj,body.proj *{cursor:none!important}
 <script>
 (() => {
 'use strict';
-const APP_VERSION = '1.2.0'; // tieni uguale a VERSION in sw.js
+const APP_VERSION = '1.3.0'; // tieni uguale a VERSION in sw.js
 const $ = id => document.getElementById(id);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -274,9 +294,9 @@ const newSurface = (i = 0) => {
     id: ++uid, on: true,
     src: { kind: ['grid', 'particles', 'scan', 'waves'][i % 4], text: 'PROIETTORE' },
     params: { speed: 1, hue: (190 + i * 70) % 360, bright: 1, loop: true, fit: 'cover' },
-    mode: 'quad', quad: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]],
+    mode: 'quad', quad: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]], shape: null, // shape: forma bloccata {kind, ratio, cx, cy, h, rot}
     meshN: 4, mesh: null, smooth: true,
-    mask: { on: true, pts: [], feather: 0 }
+    mask: { on: true, pts: [], feather: 0, shape: null }
   };
 };
 let S = { surfaces: [newSurface(0)], active: 0 };
@@ -319,10 +339,17 @@ function sanitizeSurface(r, i) {
   }
   if (r.mode === 'mesh' && d.mesh) d.mode = 'mesh';
   if (typeof r.smooth === 'boolean') d.smooth = r.smooth;
+  const shp = (o, kinds) => {
+    if (!o || typeof o !== 'object' || !kinds.includes(o.kind)) return null;
+    return { kind: o.kind, ratio: num(o.ratio, .2, 5, 1), cx: num(o.cx, -.5, 1.5, .5), cy: num(o.cy, -.5, 1.5, .5), h: num(o.h, .03, 1.8, .4), rot: num(o.rot, -180, 180, 0) };
+  };
+  if (d.mode === 'quad') { d.shape = shp(r.shape, ['rect']); if (d.shape) d.quad = shapePts(d.shape); }
   if (r.mask && typeof r.mask === 'object') {
     if (typeof r.mask.on === 'boolean') d.mask.on = r.mask.on;
     d.mask.feather = num(r.mask.feather, 0, 30, 0);
     if (Array.isArray(r.mask.pts)) d.mask.pts = r.mask.pts.slice(0, 64).map(pt).filter(Boolean);
+    d.mask.shape = shp(r.mask.shape, ['rect', 'circle', 'tri', 'hex']);
+    if (d.mask.shape) d.mask.pts = shapePts(d.mask.shape);
   }
   return d;
 }
@@ -355,6 +382,44 @@ function homography(q) {
   if (1 + g <= .05 || 1 + h <= .05 || 1 + g + h <= .05) { g = 0; h = 0; }
   return { a: x1 - x0 + g * x1, b: x3 - x0 + h * x3, c: x0, d: y1 - y0 + g * y1, e: y3 - y0 + h * y3, f: y0, g, h };
 }
+/* ---------- forme bloccate: rettangolo, cerchio, triangolo, esagono ---------- */
+const SWPX = 1920, SHPX = 1080; // la geometria si calcola in pixel dello stage, così le proporzioni sono vere
+const rad = d => d * Math.PI / 180;
+function shapePts(f) {
+  const hp = f.h * SHPX, wp = hp * (f.ratio || 1);
+  let loc;
+  if (f.kind === 'circle') { loc = []; for (let k = 0; k < 40; k++) { const a = k / 40 * 2 * Math.PI; loc.push([Math.cos(a) * wp / 2, Math.sin(a) * hp / 2]); } }
+  else if (f.kind === 'tri') loc = [[0, -hp / 2], [wp / 2, hp / 2], [-wp / 2, hp / 2]];
+  else if (f.kind === 'hex') { const R = hp / Math.sqrt(3); loc = []; for (let k = 0; k < 6; k++) loc.push([Math.cos(k * Math.PI / 3) * R, Math.sin(k * Math.PI / 3) * R]); }
+  else loc = [[-wp / 2, -hp / 2], [wp / 2, -hp / 2], [wp / 2, hp / 2], [-wp / 2, hp / 2]];
+  const c = Math.cos(rad(f.rot)), sn = Math.sin(rad(f.rot));
+  return loc.map(([x, y]) => [(f.cx * SWPX + x * c - y * sn) / SWPX, (f.cy * SHPX + x * sn + y * c) / SHPX]);
+}
+// maniglie: 0 centro, 1-4 angoli del riquadro (scala), 5 rotazione (sopra il lato alto)
+function shapeHandles(f) {
+  const hp = f.h * SHPX, wp = hp * (f.ratio || 1), c = Math.cos(rad(f.rot)), sn = Math.sin(rad(f.rot));
+  const T = (x, y) => [(f.cx * SWPX + x * c - y * sn) / SWPX, (f.cy * SHPX + x * sn + y * c) / SHPX];
+  return { pts: [[f.cx, f.cy], T(-wp / 2, -hp / 2), T(wp / 2, -hp / 2), T(wp / 2, hp / 2), T(-wp / 2, hp / 2)], top: T(0, -hp / 2), up: [sn, -c] };
+}
+function fitShape(kind, ratio, pts, fb) {
+  let cx = fb.cx, cy = fb.cy, h = fb.h, rot = 0;
+  if (pts && pts.length >= 3) {
+    const P = pts.map(p => [p[0] * SWPX, p[1] * SHPX]);
+    if (kind === 'rect' && pts.length === 4) {
+      const L = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1]);
+      const w = (L(0, 1) + L(3, 2)) / 2, hh = (L(0, 3) + L(1, 2)) / 2;
+      cx = P.reduce((t, p) => t + p[0], 0) / 4 / SWPX; cy = P.reduce((t, p) => t + p[1], 0) / 4 / SHPX;
+      rot = Math.atan2(P[1][1] - P[0][1] + P[2][1] - P[3][1], P[1][0] - P[0][0] + P[2][0] - P[3][0]) * 180 / Math.PI;
+      h = Math.sqrt(w * hh / ratio) / SHPX; // stessa area di prima
+    } else {
+      const xs = P.map(p => p[0]), ys = P.map(p => p[1]);
+      cx = (Math.min(...xs) + Math.max(...xs)) / 2 / SWPX; cy = (Math.min(...ys) + Math.max(...ys)) / 2 / SHPX;
+      h = (Math.max(...ys) - Math.min(...ys)) / SHPX;
+    }
+  }
+  return { kind, ratio, cx: clamp(cx, -.2, 1.2), cy: clamp(cy, -.2, 1.2), h: clamp(h, .03, 1.8), rot: clamp(rot, -180, 180) };
+}
+
 // Catmull-Rom uniforme: passa per i punti di controllo
 const cr = (p0, p1, p2, p3, t) => .5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
 function meshAt(m, u, v, smooth) {
@@ -744,8 +809,15 @@ const toScreen = p => [base.bx + vs.ox + p[0] * base.bw * vs.s, base.by + vs.oy 
 const fromScreen = (x, y) => [(x - base.bx - vs.ox) / (base.bw * vs.s), (y - base.by - vs.oy) / (base.bh * vs.s)];
 
 /* ---------- overlay: linee e maniglie ---------- */
+const lockedShape = () => {
+  const s = cur();
+  if (tab === 'warp' && s.mode === 'quad' && s.shape) return s.shape;
+  if (tab === 'mask' && s.mask.shape) return s.mask.shape;
+  return null;
+};
 const editPts = () => {
   const s = cur();
+  if (lockedShape()) return null;
   return tab === 'warp' ? (s.mode === 'mesh' && s.mesh ? s.mesh.pts : s.quad) : tab === 'mask' ? s.mask.pts : null;
 };
 let ovQueued = false;
@@ -753,7 +825,12 @@ function scheduleOverlay() { if (!ovQueued) { ovQueued = true; requestAnimationF
 function rebuildHandles() {
   handlesEl.textContent = '';
   const pts = editPts();
-  if (pts && !proj) {
+  if (lockedShape() && !proj) {
+    ['ctr', 'scl', 'scl', 'scl', 'scl', 'rot'].forEach((role, i) => {
+      const h = document.createElement('div'); h.className = 'h ' + role + (tab === 'mask' ? ' m' : ''); h.dataset.i = i; h.dataset.role = role;
+      h.appendChild(document.createElement('i')); handlesEl.appendChild(h);
+    });
+  } else if (pts && !proj) {
     const s = cur();
     pts.forEach((_, i) => {
       const h = document.createElement('div'); h.className = 'h' + (tab === 'mask' ? ' m' : ''); h.dataset.i = i;
@@ -775,8 +852,17 @@ const outline = s => {
   }
   return s.quad;
 };
+const rotPos = g => { const t = toScreen(g.top); return [t[0] + g.up[0] * 44, t[1] + g.up[1] * 44]; };
+const shapeScreen = f => { const g = shapeHandles(f); return [...g.pts.map(toScreen), rotPos(g)]; };
 function updateOverlay() {
-  const pts = editPts(), hs = handlesEl.children, s = cur();
+  const pts = editPts(), hs = handlesEl.children, s = cur(), lf = lockedShape();
+  const lr = $('lnRot'); lr.toggleAttribute('hidden', true);
+  if (lf && hs.length === 6) {
+    const pos = shapeScreen(lf);
+    pos.forEach((q, i) => { hs[i].style.transform = `translate(${q[0] - 22}px,${q[1] - 22}px)`; });
+    const t = toScreen(shapeHandles(lf).top);
+    lr.removeAttribute('hidden'); lr.setAttribute('d', `M${t[0].toFixed(1)} ${t[1].toFixed(1)}L${pos[5][0].toFixed(1)} ${pos[5][1].toFixed(1)}`);
+  }
   if (pts) for (let i = 0; i < hs.length && i < pts.length; i++) {
     const [x, y] = toScreen(pts[i]);
     hs[i].style.transform = `translate(${x - 22}px,${y - 22}px)`;
@@ -806,9 +892,9 @@ function updateOverlay() {
   }
 }
 function updateSelUI() {
-  const pts = editPts(), s = cur(), ok = !!pts && sel >= 0 && sel < pts.length;
+  const pts = editPts(), s = cur(), lf = lockedShape(), ok = !!lf || (!!pts && sel >= 0 && sel < pts.length);
   $$('[data-nudge]').forEach(b => b.disabled = !ok);
-  $('selInfo').textContent = ok ? `Punto ${sel + 1} selezionato` : 'Tocca un punto per selezionarlo';
+  $('selInfo').textContent = lf ? 'Centro: sposta · angoli: scala · cerchio pieno: ruota' : ok ? `Punto ${sel + 1} selezionato` : 'Tocca un punto per selezionarlo';
   $('btnMaskDel').disabled = !s.mask.pts.length;
   $('btnMaskClear').disabled = !s.mask.pts.length;
   const n = s.mask.pts.length;
@@ -827,6 +913,11 @@ view.addEventListener('pointerdown', e => {
   }
   if (e.target.closest && e.target.closest('button,#surfBar,#surfMenu')) return;
   const h = e.target.closest && e.target.closest('.h');
+  if (h && !drag && ptrs.size === 0 && lockedShape()) {
+    const lf = lockedShape(), i = +h.dataset.i, [x, y] = rel(e), hp = shapeScreen(lf)[i], cS = toScreen([lf.cx, lf.cy]);
+    drag = { id: e.pointerId, shape: true, role: h.dataset.role, tgt: tab === 'mask' ? 'mask' : 'quad', dx: hp[0] - x, dy: hp[1] - y, h0: lf.h, d0: Math.hypot(hp[0] - cS[0], hp[1] - cS[1]) || 1 };
+    h.setPointerCapture(e.pointerId); e.preventDefault(); return;
+  }
   if (h && !drag && ptrs.size === 0) {
     const pts = editPts(); const i = +h.dataset.i; if (!pts || !pts[i]) return;
     sel = i; const [x, y] = rel(e), [sx, sy] = toScreen(pts[i]);
@@ -848,6 +939,19 @@ view.addEventListener('pointerdown', e => {
 });
 view.addEventListener('pointermove', e => {
   if (proj) { if (tapInfo && Math.hypot(rel(e)[0] - tapInfo.x, rel(e)[1] - tapInfo.y) > 14) clearTimeout(longTimer); return; }
+  if (drag && drag.shape && e.pointerId === drag.id) {
+    const s = cur(), f = drag.tgt === 'mask' ? s.mask.shape : s.shape; if (!f) return;
+    const [x, y] = rel(e), P = [x + drag.dx, y + drag.dy], cS = toScreen([f.cx, f.cy]);
+    if (drag.role === 'ctr') { const n = fromScreen(P[0], P[1]); f.cx = clamp(n[0], -.2, 1.2); f.cy = clamp(n[1], -.2, 1.2); }
+    else if (drag.role === 'scl') f.h = clamp(drag.h0 * Math.hypot(P[0] - cS[0], P[1] - cS[1]) / drag.d0, .03, 1.8);
+    else {
+      let a = Math.atan2(P[1] - cS[1], P[0] - cS[0]) * 180 / Math.PI + 90;
+      if (a > 180) a -= 360;
+      const r15 = Math.round(a / 15) * 15; if (Math.abs(a - r15) < 3) a = r15; // aggancio ai multipli di 15°
+      f.rot = a;
+    }
+    applyShape(drag.tgt); syncShapeSliders(); changed(drag.tgt === 'mask' ? 'mask' : 'geom'); return;
+  }
   if (drag && e.pointerId === drag.id) {
     const pts = editPts(); if (!pts) return;
     const [x, y] = rel(e), n = fromScreen(x + drag.dx, y + drag.dy);
@@ -874,7 +978,7 @@ function endPtr(e) {
   if (ptrs.size < 2) pinch = null;
   if (ptrs.size === 0 && was && e.type === 'pointerup' && !was.moved && !was.pinched && performance.now() - was.t < 400) {
     const n = fromScreen(was.x, was.y), s = cur();
-    if (tab === 'mask' && n[0] >= -.02 && n[0] <= 1.02 && n[1] >= -.02 && n[1] <= 1.02 && s.mask.pts.length < 64) {
+    if (tab === 'mask' && !s.mask.shape && n[0] >= -.02 && n[0] <= 1.02 && n[1] >= -.02 && n[1] <= 1.02 && s.mask.pts.length < 64) {
       addMaskPoint(s, [clamp(n[0], 0, 1), clamp(n[1], 0, 1)]); rebuildHandles(); changed('mask');
     } else if (sel !== -1) { sel = -1; updateSelUI(); scheduleOverlay(); }
   }
@@ -897,6 +1001,19 @@ function addMaskPoint(s, p) {
     if (d < bd) { bd = d; best = i; }
   }
   a.splice(best + 1, 0, p); sel = best + 1;
+}
+
+function applyShape(tgt) {
+  const s = cur();
+  if (tgt === 'mask') s.mask.pts = shapePts(s.mask.shape); else s.quad = shapePts(s.shape);
+}
+function syncShapeSliders() {
+  const s = cur();
+  [['W', s.shape], ['M', s.mask.shape]].forEach(([k, f]) => {
+    if (!f) return;
+    $('s' + k + 'Size').value = Math.round(f.h * 100); $('o' + k + 'Size').textContent = Math.round(f.h * 100) + '%';
+    $('s' + k + 'Rot').value = Math.round(f.rot); $('o' + k + 'Rot').textContent = Math.round(f.rot) + '°';
+  });
 }
 
 /* ---------- salvataggio ---------- */
@@ -1063,6 +1180,13 @@ function syncUI() {
   $('segN').hidden = s.mode !== 'mesh'; $('rowSmooth').hidden = s.mode !== 'mesh';
   $$('#segN button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === s.meshN)));
   $('swSmooth').setAttribute('aria-checked', String(s.smooth));
+  $('boxShapeW').hidden = s.mode !== 'quad'; $('blkShapeW').hidden = !s.shape || s.mode !== 'quad'; $('blkShapeM').hidden = !s.mask.shape;
+  $$('#segShapeW button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.r === 'free' ? !s.shape : !!s.shape && Math.abs(+b.dataset.r - s.shape.ratio) < 1e-3)));
+  $$('#segShapeM button').forEach(b => {
+    const m = s.mask.shape, [k, r] = b.dataset.k.split(':');
+    b.setAttribute('aria-pressed', String(k === 'free' ? !m : !!m && m.kind === k && (k !== 'rect' || Math.abs(+r - m.ratio) < 1e-3)));
+  });
+  syncShapeSliders();
   $('swMask').setAttribute('aria-checked', String(s.mask.on));
   $('sFeather').value = s.mask.feather; $('oFeather').textContent = s.mask.feather ? s.mask.feather + ' px' : 'nessuna';
   $('swCalib').setAttribute('aria-checked', String(calib));
@@ -1098,6 +1222,7 @@ $('mDup').onclick = () => {
   s.quad = s.quad.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
   if (s.mesh) s.mesh.pts = s.mesh.pts.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
   s.mask.pts = s.mask.pts.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
+  [s.shape, s.mask.shape].forEach(f => { if (f) { f.cx += .03; f.cy += .03; } });
   S.surfaces.push(s); selectSurface(S.surfaces.length - 1); changed('all'); toast('Superficie duplicata');
 };
 let delArmed = false;
@@ -1126,7 +1251,7 @@ $('segFit').addEventListener('click', e => { const b = e.target.closest('button'
 
 $('segMode').addEventListener('click', e => {
   const b = e.target.closest('button'), s = cur(); if (!b || b.dataset.mode === s.mode) return;
-  if (b.dataset.mode === 'mesh') { if (!s.mesh) s.mesh = meshFromQuad(s, s.meshN); s.mode = 'mesh'; } else s.mode = 'quad';
+  if (b.dataset.mode === 'mesh') { if (!s.mesh) s.mesh = meshFromQuad(s, s.meshN); s.mode = 'mesh'; s.shape = null; } else s.mode = 'quad';
   sel = -1; syncUI(); rebuildHandles(); changed('geom'); if (calib) inv(s, 'content');
 });
 $('segN').addEventListener('click', e => {
@@ -1134,11 +1259,42 @@ $('segN').addEventListener('click', e => {
   const n = +b.dataset.n; if (s.mesh && s.mesh.n !== n) s.mesh = resampleMesh(s.mesh, n, s.smooth);
   s.meshN = n; sel = -1; syncUI(); rebuildHandles(); changed('geom'); inv(s, 'content');
 });
+$('segShapeW').addEventListener('click', e => {
+  const b = e.target.closest('button'), s = cur(); if (!b) return;
+  if (b.dataset.r === 'free') s.shape = null;
+  else {
+    let ratio = +b.dataset.r;
+    if (b.dataset.r === 'auto') { // tieni le proporzioni attuali del quad, ma raddrizzalo
+      const P = s.quad.map(p => [p[0] * SWPX, p[1] * SHPX]), L = (a, c) => Math.hypot(P[a][0] - P[c][0], P[a][1] - P[c][1]);
+      ratio = clamp(((L(0, 1) + L(3, 2)) / 2) / (((L(0, 3) + L(1, 2)) / 2) || 1), .2, 5);
+    }
+    s.shape = fitShape('rect', ratio, s.quad, { cx: .5, cy: .5, h: .4 }); s.quad = shapePts(s.shape);
+  }
+  sel = -1; syncUI(); rebuildHandles(); changed('geom'); if (calib) inv(s, 'content');
+});
+$('segShapeM').addEventListener('click', e => {
+  const b = e.target.closest('button'), s = cur(); if (!b) return;
+  const [k, r] = b.dataset.k.split(':');
+  if (k === 'free') s.mask.shape = null;
+  else {
+    const q = s.quad, fb = { cx: q.reduce((t, p) => t + p[0], 0) / q.length, cy: q.reduce((t, p) => t + p[1], 0) / q.length, h: .45 };
+    const ratio = k === 'rect' ? +r : k === 'circle' ? 1 : 2 / Math.sqrt(3);
+    s.mask.shape = fitShape(k, ratio, s.mask.pts.length >= 3 ? s.mask.pts : null, fb);
+    s.mask.pts = shapePts(s.mask.shape); s.mask.on = true;
+  }
+  sel = -1; syncUI(); rebuildHandles(); changed('mask');
+});
+[['W', 'quad'], ['M', 'mask']].forEach(([k, tgt]) => {
+  const getF = () => tgt === 'mask' ? cur().mask.shape : cur().shape;
+  $('s' + k + 'Size').oninput = e => { const f = getF(); if (!f) return; f.h = clamp(+e.target.value / 100, .03, 1.8); applyShape(tgt); syncShapeSliders(); changed(tgt === 'mask' ? 'mask' : 'geom'); };
+  $('s' + k + 'Rot').oninput = e => { const f = getF(); if (!f) return; f.rot = clamp(+e.target.value, -180, 180); applyShape(tgt); syncShapeSliders(); changed(tgt === 'mask' ? 'mask' : 'geom'); };
+});
 bindSw('swSmooth', () => cur().smooth, v => { cur().smooth = v; changed('geom'); });
 bindSw('swCalib', () => calib, v => { calib = v; syncUI(); invAll('content'); });
 $('btnReset').onclick = () => {
   const s = cur(), b = BOX[S.active % MAXS];
   s.quad = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+  if (s.shape) { s.shape = fitShape('rect', s.shape.ratio, s.quad, { cx: .5, cy: .5, h: .4 }); s.quad = shapePts(s.shape); }
   if (s.mode === 'mesh') s.mesh = meshFromQuad(s, s.mesh.n);
   sel = -1; rebuildHandles(); changed('geom');
 };
@@ -1152,6 +1308,11 @@ $('btnMaskClear').onclick = () => { cur().mask.pts = []; sel = -1; rebuildHandle
 
 /* spostamento fine del punto selezionato (pulsanti e frecce) */
 function nudge(dir) {
+  const lf = lockedShape();
+  if (lf) {
+    lf.cx = clamp(lf.cx + ({ l: -1, r: 1 }[dir] || 0) / SWPX, -.2, 1.2); lf.cy = clamp(lf.cy + ({ u: -1, d: 1 }[dir] || 0) / SHPX, -.2, 1.2);
+    applyShape(tab === 'mask' ? 'mask' : 'quad'); changed(tab === 'mask' ? 'mask' : 'geom'); return;
+  }
   const pts = editPts(); if (!pts || sel < 0 || !pts[sel]) return;
   const dx = { l: -1, r: 1 }[dir] || 0, dy = { u: -1, d: 1 }[dir] || 0;
   pts[sel][0] = clamp(pts[sel][0] + dx / 1920, -.1, 1.1); pts[sel][1] = clamp(pts[sel][1] + dy / 1080, -.1, 1.1);
