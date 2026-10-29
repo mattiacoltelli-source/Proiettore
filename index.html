@@ -52,7 +52,18 @@ main{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0}
 .h.m.sel i{background:var(--ice)}
 .h b{position:absolute;left:30px;top:2px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000;pointer-events:none}
 .chip{position:absolute;left:10px;top:10px;padding:6px 10px;border-radius:999px;background:rgba(20,22,27,.85);color:var(--mute);font-size:12px}
-#zoomReset{left:auto;right:10px;min-height:36px;color:var(--ink);cursor:pointer}
+#zoomReset{left:auto;right:10px;top:auto;bottom:10px;min-height:36px;color:var(--ink);cursor:pointer}
+#glNote{top:auto;bottom:10px}
+#lnOthers{stroke:#fff;stroke-width:1;stroke-dasharray:4 4;opacity:.3}
+#surfBar{position:absolute;left:8px;right:8px;top:8px;z-index:3;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+#surfBar::-webkit-scrollbar{display:none}
+.sc{flex:none;min-width:44px;height:44px;border-radius:12px;background:rgba(20,22,27,.88);border:1px solid transparent;color:var(--mute);font-weight:600;font-size:16px}
+.sc[aria-pressed=true]{color:var(--lamp);border-color:var(--lamp)}
+.sc.off{opacity:.45;text-decoration:line-through}
+.sc.add{color:var(--ink);font-size:22px;font-weight:400}
+#surfMenu{position:absolute;left:8px;top:58px;z-index:3;display:flex;gap:6px;padding:6px;border-radius:14px;background:rgba(20,22,27,.96);border:1px solid var(--line)}
+#liveExit{display:none;position:absolute;left:10px;top:10px;z-index:4;min-width:56px;min-height:44px;padding:0 12px;border-radius:12px;background:rgba(255,255,255,.1);color:#9aa0ab;font-weight:600}
+body.live #liveExit{display:block}
 .empty-view{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--mute);pointer-events:none;font-size:14px}
 
 .panel{height:clamp(250px,42dvh,380px);overflow-y:auto;overscroll-behavior:contain;background:var(--raise);border-top:1px solid var(--line);padding:10px 14px 14px;-webkit-user-select:none}
@@ -123,13 +134,14 @@ input[type=text]:focus{border-color:var(--lamp);outline:0}
 }
 @media (max-height:520px){:root{--nav:50px}.bar button{gap:0}.top{min-height:38px}}
 
-body.proj #app{display:block;background:#000}
-body.proj .top,body.proj .panel,body.proj .bar,body.proj .ov,body.proj #handles,body.proj .chip,body.proj .empty-view,body.proj #toast,body.proj #update,body.proj #sheet{display:none!important}
-body.proj main{display:block}
-body.proj .view{position:fixed;inset:0;z-index:50;background:#000}
-body.proj .wrap{outline:0}
-body.proj .wrap img{display:none}
-body.proj .wrap canvas{mix-blend-mode:normal}
+body.proj .top,body.proj .panel,body.proj .bar,body.proj .ov,body.proj #handles,body.proj .chip,body.proj .empty-view,body.proj #toast,body.proj #update,body.proj #sheet,body.proj #surfBar,body.proj #surfMenu,
+body.live .top,body.live .panel,body.live .bar,body.live .chip,body.live .empty-view,body.live #toast,body.live #update,body.live #sheet,body.live #surfBar,body.live #surfMenu{display:none!important}
+body.proj #app,body.live #app{display:block;background:#000}
+body.proj main,body.live main{display:block}
+body.proj .view,body.live .view{position:fixed;inset:0;z-index:50;background:#000}
+body.proj .wrap,body.live .wrap{outline:0}
+body.proj .wrap img,body.live .wrap img{display:none}
+body.proj .wrap canvas,body.live .wrap canvas{mix-blend-mode:normal}
 body.proj,body.proj *{cursor:none!important}
 @media (prefers-reduced-motion:reduce){.sw,.sw::after{transition:none}}
 </style>
@@ -147,8 +159,11 @@ body.proj,body.proj *{cursor:none!important}
   <main>
     <section class="view" id="view" aria-label="Anteprima">
       <div class="wrap" id="wrap"><canvas id="stage"></canvas></div>
-      <svg class="ov" aria-hidden="true"><polygon id="lnQuad" hidden></polygon><path id="lnMesh" hidden></path><polygon id="lnMask" hidden></polygon></svg>
+      <svg class="ov" aria-hidden="true"><path id="lnOthers" hidden></path><polygon id="lnQuad" hidden></polygon><path id="lnMesh" hidden></path><polygon id="lnMask" hidden></polygon></svg>
       <div id="handles"></div>
+      <div id="surfBar" role="toolbar" aria-label="Superfici"></div>
+      <div id="surfMenu" hidden><button class="btn" id="mVis">Nascondi</button><button class="btn" id="mDup">Duplica</button><button class="btn danger" id="mDel">Elimina</button></div>
+      <button id="liveExit" aria-label="Fine calibrazione">Fine</button>
       <div class="chip" id="glNote" hidden></div>
       <button class="chip" id="zoomReset" hidden>Adatta</button>
       <div class="empty-view" id="emptyView" hidden></div>
@@ -181,11 +196,13 @@ body.proj,body.proj *{cursor:none!important}
           <div class="seg" id="segMode"><button data-mode="quad" aria-pressed="true">Quad</button><button data-mode="mesh" aria-pressed="false">Mesh</button></div>
           <div class="seg" id="segN" hidden><button data-n="3">3×3</button><button data-n="4">4×4</button><button data-n="5">5×5</button><button data-n="6">6×6</button></div>
         </div>
+        <div class="row" id="rowSmooth" hidden><span style="font-weight:500">Curve morbide</span><button class="sw" id="swSmooth" role="switch" aria-checked="true" aria-label="Curve morbide"></button></div>
         <div class="row"><span style="font-weight:500">Griglia di calibrazione</span><button class="sw" id="swCalib" role="switch" aria-checked="false" aria-label="Griglia di calibrazione"></button></div>
         <div class="row">
           <div><div id="selInfo" class="hint">Tocca un punto per selezionarlo</div><button class="btn" id="btnReset" style="margin-top:6px">Ripristina</button></div>
           <div class="nudge" data-nudge-box><button class="u" data-nudge="u" aria-label="Su" disabled>↑</button><button class="l" data-nudge="l" aria-label="Sinistra" disabled>←</button><button class="d" data-nudge="d" aria-label="Giù" disabled>↓</button><button class="r" data-nudge="r" aria-label="Destra" disabled>→</button></div>
         </div>
+        <button class="btn lamp" id="btnLive" style="width:100%">Calibra dal vivo</button>
         <div class="row wrapr"><button class="btn" id="btnRef">Foto di riferimento</button><button class="btn danger" id="btnRefDel" hidden>Rimuovi foto</button></div>
         <div class="sl" id="boxRefOp" hidden><label for="sRefOp">Trasparenza foto</label><output id="oRefOp"></output><input type="range" id="sRefOp" min="5" max="100" step="1"></div>
         <p class="hint" id="refHint">Scatta una foto dell'oggetto per tracciare i contorni anche con il proiettore spento.</p>
@@ -193,7 +210,9 @@ body.proj,body.proj *{cursor:none!important}
 
       <div class="pane" data-pane="mask" hidden>
         <div class="row"><span style="font-weight:500">Maschera attiva</span><button class="sw" id="swMask" role="switch" aria-checked="true" aria-label="Maschera attiva"></button></div>
+        <div class="sl"><label for="sFeather">Sfumatura del bordo</label><output id="oFeather"></output><input type="range" id="sFeather" min="0" max="30" step="1"></div>
         <p class="hint" id="maskHint"></p>
+        <button class="btn lamp" id="btnLive2" style="width:100%">Traccia dal vivo</button>
         <div class="row">
           <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="btnMaskDel">Elimina punto</button><button class="btn danger" id="btnMaskClear">Cancella tutto</button></div>
           <div class="nudge"><button class="u" data-nudge="u" aria-label="Su" disabled>↑</button><button class="l" data-nudge="l" aria-label="Sinistra" disabled>←</button><button class="d" data-nudge="d" aria-label="Giù" disabled>↓</button><button class="r" data-nudge="r" aria-label="Destra" disabled>→</button></div>
@@ -203,6 +222,7 @@ body.proj,body.proj *{cursor:none!important}
       <div class="pane" data-pane="proj" hidden style="gap:10px">
         <button class="btn lamp big" id="btnGo">Avvia proiezione</button>
         <p class="hint" id="projStatus"></p>
+        <p class="hint" id="diag" style="font-variant-numeric:tabular-nums"></p>
         <p class="hint">Per uscire tieni premuto lo schermo per un secondo. Lo schermo resta acceso e fuori dalla maschera resta nero.</p>
       </div>
     </section>
@@ -236,29 +256,33 @@ body.proj,body.proj *{cursor:none!important}
 <script>
 (() => {
 'use strict';
+const APP_VERSION = '1.2.0'; // tieni uguale a VERSION in sw.js
 const $ = id => document.getElementById(id);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const APP_VERSION = '1.1.1'; // tieni uguale a VERSION in sw.js
-const CW = 1280, CH = 720, CYCLE = 12;
+const CW = 1280, CH = 720, MW = 960, MH = 540, CYCLE = 12, MAXS = 4;
 const KINDS = ['grid', 'particles', 'scan', 'waves', 'text', 'file'];
 const LS_CUR = 'proiettore:current', LS_PRJ = 'proiettore:projects';
 const NOGL = new URLSearchParams(location.search).has('nogl');
 
-/* ---------- stato ---------- */
-const DEF = () => ({
-  src: { kind: 'grid', text: 'PROIETTORE' },
-  params: { speed: 1, hue: 190, bright: 1, loop: true, fit: 'cover' },
-  mode: 'quad',
-  quad: [[.2, .2], [.8, .2], [.8, .8], [.2, .8]],
-  meshN: 4,
-  mesh: null, // { n, pts }
-  mask: { on: true, pts: [] }
-});
-let S = DEF();
-let tab = 'content', sel = -1, proj = false;
-let media = null, mediaUrl = null, refUrl = null;
-let animT = 0;
+/* ---------- stato: una lista di superfici, ognuna con contenuto, warp e maschera ---------- */
+let uid = 0;
+const BOX = [[.2, .2, .8, .8], [.06, .1, .36, .5], [.64, .1, .94, .5], [.35, .58, .65, .92]];
+const newSurface = (i = 0) => {
+  const b = BOX[i % MAXS];
+  return {
+    id: ++uid, on: true,
+    src: { kind: ['grid', 'particles', 'scan', 'waves'][i % 4], text: 'PROIETTORE' },
+    params: { speed: 1, hue: (190 + i * 70) % 360, bright: 1, loop: true, fit: 'cover' },
+    mode: 'quad', quad: [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]],
+    meshN: 4, mesh: null, smooth: true,
+    mask: { on: true, pts: [], feather: 0 }
+  };
+};
+let S = { surfaces: [newSurface(0)], active: 0 };
+const cur = () => S.surfaces[S.active];
+let tab = 'content', sel = -1, proj = false, live = false, calib = false, calibBefore = false;
+let refUrl = null;
 
 /* ---------- storage (sempre protetto) ---------- */
 const store = {
@@ -268,12 +292,13 @@ const store = {
 const storeOK = (() => { try { localStorage.setItem('proiettore:t', '1'); localStorage.removeItem('proiettore:t'); return true; } catch (e) { return false; } })();
 
 /* ---------- validazione dati (JSON importato / localStorage) ---------- */
-function sanitize(r) {
+function sanitizeSurface(r, i) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
-  const d = DEF();
+  const d = newSurface(i);
   const num = (v, lo, hi, def) => (typeof v === 'number' && isFinite(v)) ? clamp(v, lo, hi) : def;
   const pt = p => (Array.isArray(p) && p.length === 2 && p.every(x => typeof x === 'number' && isFinite(x))) ? [clamp(p[0], -.5, 1.5), clamp(p[1], -.5, 1.5)] : null;
   const pts = (a, n) => { if (!Array.isArray(a) || a.length !== n) return null; const o = a.map(pt); return o.every(Boolean) ? o : null; };
+  if (typeof r.on === 'boolean') d.on = r.on;
   if (r.src && typeof r.src === 'object') {
     if (KINDS.includes(r.src.kind)) d.src.kind = r.src.kind;
     if (typeof r.src.text === 'string') d.src.text = r.src.text.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 60);
@@ -281,25 +306,39 @@ function sanitize(r) {
   if (r.params && typeof r.params === 'object') {
     const p = r.params;
     d.params.speed = num(p.speed, .2, 3, 1);
-    d.params.hue = num(p.hue, 0, 360, 190);
+    d.params.hue = num(p.hue, 0, 360, d.params.hue);
     d.params.bright = num(p.bright, .05, 1, 1);
     if (typeof p.loop === 'boolean') d.params.loop = p.loop;
     if (p.fit === 'cover' || p.fit === 'contain') d.params.fit = p.fit;
   }
   const q = pts(r.quad, 4); if (q) d.quad = q;
-  const mn = Number.isInteger(r.meshN) ? clamp(r.meshN, 3, 6) : 4; d.meshN = mn;
+  d.meshN = Number.isInteger(r.meshN) ? clamp(r.meshN, 3, 6) : 4;
   if (r.mesh && typeof r.mesh === 'object' && Number.isInteger(r.mesh.n) && r.mesh.n >= 3 && r.mesh.n <= 6) {
     const m = pts(r.mesh.pts, r.mesh.n * r.mesh.n);
     if (m) { d.mesh = { n: r.mesh.n, pts: m }; d.meshN = r.mesh.n; }
   }
   if (r.mode === 'mesh' && d.mesh) d.mode = 'mesh';
+  if (typeof r.smooth === 'boolean') d.smooth = r.smooth;
   if (r.mask && typeof r.mask === 'object') {
     if (typeof r.mask.on === 'boolean') d.mask.on = r.mask.on;
+    d.mask.feather = num(r.mask.feather, 0, 30, 0);
     if (Array.isArray(r.mask.pts)) d.mask.pts = r.mask.pts.slice(0, 64).map(pt).filter(Boolean);
   }
   return d;
 }
-const serialize = () => JSON.stringify({ app: 'proiettore', version: 1, ...S });
+function sanitize(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+  let list;
+  if (Array.isArray(r.surfaces)) list = r.surfaces.slice(0, MAXS).map((x, i) => sanitizeSurface(x, i)).filter(Boolean);
+  else list = [sanitizeSurface(r, 0)]; // formato 1.x: una sola superficie
+  if (!list.length) list = [newSurface(0)];
+  return { surfaces: list, active: Number.isInteger(r.active) ? clamp(r.active, 0, list.length - 1) : 0 };
+}
+const plain = st => ({
+  app: 'proiettore', version: 2, active: st.active,
+  surfaces: st.surfaces.map(({ id, ...s }) => s)
+});
+const serialize = () => JSON.stringify(plain(S));
 
 /* ---------- geometria ---------- */
 function homography(q) {
@@ -316,37 +355,53 @@ function homography(q) {
   if (1 + g <= .05 || 1 + h <= .05 || 1 + g + h <= .05) { g = 0; h = 0; }
   return { a: x1 - x0 + g * x1, b: x3 - x0 + h * x3, c: x0, d: y1 - y0 + g * y1, e: y3 - y0 + h * y3, f: y0, g, h };
 }
-function meshAt(m, u, v) { // bilineare sulla mesh m {n, pts}
+// Catmull-Rom uniforme: passa per i punti di controllo
+const cr = (p0, p1, p2, p3, t) => .5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+function meshAt(m, u, v, smooth) {
   const n = m.n, su = clamp(u, 0, 1) * (n - 1), sv = clamp(v, 0, 1) * (n - 1);
   const i = Math.min(Math.floor(su), n - 2), j = Math.min(Math.floor(sv), n - 2);
   const fu = su - i, fv = sv - j;
-  const A = m.pts[j * n + i], B = m.pts[j * n + i + 1], C = m.pts[(j + 1) * n + i], D = m.pts[(j + 1) * n + i + 1];
-  return [0, 1].map(k => (A[k] * (1 - fu) + B[k] * fu) * (1 - fv) + (C[k] * (1 - fu) + D[k] * fu) * fv);
+  if (!smooth) {
+    const A = m.pts[j * n + i], B = m.pts[j * n + i + 1], C = m.pts[(j + 1) * n + i], D = m.pts[(j + 1) * n + i + 1];
+    return [0, 1].map(k => (A[k] * (1 - fu) + B[k] * fu) * (1 - fv) + (C[k] * (1 - fu) + D[k] * fu) * fv);
+  }
+  // punti fuori griglia: estrapolazione lineare, così una griglia regolare resta lineare anche ai bordi
+  const P = (ii, jj) => {
+    if (ii < 0) { const a = P(0, jj), b = P(1, jj); return [2 * a[0] - b[0], 2 * a[1] - b[1]]; }
+    if (ii >= n) { const a = P(n - 1, jj), b = P(n - 2, jj); return [2 * a[0] - b[0], 2 * a[1] - b[1]]; }
+    if (jj < 0) { const a = P(ii, 0), b = P(ii, 1); return [2 * a[0] - b[0], 2 * a[1] - b[1]]; }
+    if (jj >= n) { const a = P(ii, n - 1), b = P(ii, n - 2); return [2 * a[0] - b[0], 2 * a[1] - b[1]]; }
+    return m.pts[jj * n + ii];
+  };
+  return [0, 1].map(k => {
+    const rows = [-1, 0, 1, 2].map(dj => cr(P(i - 1, j + dj)[k], P(i, j + dj)[k], P(i + 1, j + dj)[k], P(i + 2, j + dj)[k], fu));
+    return cr(rows[0], rows[1], rows[2], rows[3], fv);
+  });
 }
-function meshFromQuad(n) {
-  const H = homography(S.quad), pts = [];
+function meshFromQuad(s, n) {
+  const H = homography(s.quad), pts = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
     const u = i / (n - 1), v = j / (n - 1), w = H.g * u + H.h * v + 1;
     pts.push([(H.a * u + H.b * v + H.c) / w, (H.d * u + H.e * v + H.f) / w]);
   }
   return { n, pts };
 }
-function resampleMesh(old, n) {
+function resampleMesh(old, n, smooth) {
   const pts = [];
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) pts.push(meshAt(old, i / (n - 1), j / (n - 1)));
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) pts.push(meshAt(old, i / (n - 1), j / (n - 1), smooth));
   return { n, pts };
 }
-// vertici (X,Y,W,U,V) + indici; sub = suddivisioni per cella
-function buildGeom(fallback) {
-  const mesh = S.mode === 'mesh' && S.mesh;
-  const G = mesh ? (S.mesh.n - 1) * (fallback ? 4 : 6) : (fallback ? 16 : 1);
-  const H = mesh ? null : homography(S.quad);
+// vertici (clip o normalizzati, W, U, V) + indici
+function buildGeom(s, fallback) {
+  const mesh = s.mode === 'mesh' && s.mesh;
+  const G = mesh ? (s.mesh.n - 1) * (fallback ? 4 : 8) : (fallback ? 16 : 1);
+  const H = mesh ? null : homography(s.quad);
   const verts = new Float32Array((G + 1) * (G + 1) * 5);
   let k = 0;
   for (let j = 0; j <= G; j++) for (let i = 0; i <= G; i++) {
     const u = i / G, v = j / G;
     let X, Y, W = 1;
-    if (mesh) { [X, Y] = meshAt(S.mesh, u, v); }
+    if (mesh) { [X, Y] = meshAt(s.mesh, u, v, s.smooth); }
     else { W = H.g * u + H.h * v + 1; X = (H.a * u + H.b * v + H.c) / W; Y = (H.d * u + H.e * v + H.f) / W; }
     // WebGL: coordinate clip premoltiplicate per W (interpolazione prospettica corretta); 2D: normalizzate
     if (fallback) { verts[k++] = X; verts[k++] = Y; } else { verts[k++] = (2 * X - 1) * W; verts[k++] = (1 - 2 * Y) * W; }
@@ -361,12 +416,49 @@ function buildGeom(fallback) {
   return { verts, idx };
 }
 
-/* ---------- contenuto: canvas 2D ---------- */
-const content = document.createElement('canvas'); content.width = CW; content.height = CH;
-const cx = content.getContext('2d');
-const col = (h, l = 60, a = 1) => `hsla(${h % 360},100%,${l}%,${a})`;
-const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+/* ---------- dati runtime per superficie (canvas, texture, media) ---------- */
+const rt = new Map();
+let gl = null, ctx2 = null, glLost = false, prog, loc = {};
+const canvas = $('stage');
+function glInitSurface(r) {
+  r.bufV = gl.createBuffer(); r.bufI = gl.createBuffer();
+  const mk = () => {
+    const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  };
+  r.texC = mk(); r.texM = mk();
+}
+function R(s) {
+  let r = rt.get(s.id);
+  if (!r) {
+    const c = document.createElement('canvas'); c.width = CW; c.height = CH;
+    const m = document.createElement('canvas'); m.width = MW; m.height = MH;
+    r = { content: c, cx: c.getContext('2d'), maskC: m, mx: m.getContext('2d'), animT: 0, media: null, mediaUrl: null,
+      geom: null, idxCount: 0, upC: true, upM: true, d: { geom: true, mask: true, content: true } };
+    if (gl) glInitSurface(r);
+    rt.set(s.id, r);
+  }
+  return r;
+}
+function dropMedia(r) {
+  if (r.media && r.media.tagName === 'VIDEO') { try { r.media.pause(); r.media.removeAttribute('src'); r.media.load(); } catch (e) {} }
+  if (r.mediaUrl) URL.revokeObjectURL(r.mediaUrl); r.media = null; r.mediaUrl = null;
+}
+function disposeRT(id) {
+  const r = rt.get(id); if (!r) return;
+  dropMedia(r);
+  if (gl && !glLost) { try { gl.deleteBuffer(r.bufV); gl.deleteBuffer(r.bufI); gl.deleteTexture(r.texC); gl.deleteTexture(r.texM); } catch (e) {} }
+  rt.delete(id);
+}
+let compDirty = true;
+function inv(s, w) { const d = R(s).d; if (w === 'all') d.geom = d.mask = d.content = true; else d[w] = true; compDirty = true; }
+const invAll = w => S.surfaces.forEach(s => inv(s, w));
 
+/* ---------- contenuto: canvas 2D ---------- */
+const col = (h, l = 60, a = 1) => `hsla(${h % 360},100%,${l}%,${a})`;
+const hash = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
 const ANIMS = {
   grid(c, W, H, T, h) {
     const SP = 80, off = (T * 45) % SP;
@@ -427,16 +519,16 @@ const ANIMS = {
       c.stroke();
     }
   },
-  text(c, W, H, T, h) {
-    const txt = S.src.text || ' ';
+  text(c, W, H, T, h, s) {
+    const txt = s.src.text || ' ';
     c.font = '700 260px Roboto,"Segoe UI",system-ui,sans-serif'; c.textBaseline = 'middle';
     const w = c.measureText(txt).width + 240;
     const x = W - ((T * 230) % (w + W));
     c.fillStyle = col(h, 62, 1); c.fillText(txt, x, H / 2);
   }
 };
-function drawCalib(c) {
-  const n = S.mode === 'mesh' && S.mesh ? S.mesh.n : 2;
+function drawCalib(c, s) {
+  const n = s.mode === 'mesh' && s.mesh ? s.mesh.n : 2;
   c.strokeStyle = '#fff'; c.fillStyle = '#fff';
   c.globalAlpha = .3; c.lineWidth = 1.5; c.beginPath();
   for (let i = 1; i < 16; i++) { c.moveTo(i * CW / 16, 0); c.lineTo(i * CW / 16, CH); }
@@ -457,46 +549,47 @@ function drawCalib(c) {
     c.fillText(String(k + 1), px + (left ? 14 : -14), py + (top ? 12 : -12));
   });
 }
-function drawMedia(c) {
-  const m = media; if (!m) return;
+function drawMedia(c, s, r) {
+  const m = r.media; if (!m) return;
   const mw = m.videoWidth || m.naturalWidth, mh = m.videoHeight || m.naturalHeight;
   if (!mw || !mh) return;
-  const sc = (S.params.fit === 'cover' ? Math.max : Math.min)(CW / mw, CH / mh);
+  const sc = (s.params.fit === 'cover' ? Math.max : Math.min)(CW / mw, CH / mh);
   c.drawImage(m, (CW - mw * sc) / 2, (CH - mh * sc) / 2, mw * sc, mh * sc);
 }
-let calib = false;
-function drawContent() {
-  cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1; cx.textAlign = 'left';
-  cx.fillStyle = '#000'; cx.fillRect(0, 0, CW, CH);
-  if (calib) drawCalib(cx);
-  else if (S.src.kind === 'file') drawMedia(cx);
-  else ANIMS[S.src.kind](cx, CW, CH, animT, S.params.hue);
-  cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;
+function drawContent(s, r) {
+  const c = r.cx;
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.textAlign = 'left';
+  c.fillStyle = '#000'; c.fillRect(0, 0, CW, CH);
+  if (calib && s === cur()) drawCalib(c, s);
+  else if (s.src.kind === 'file') drawMedia(c, s, r);
+  else ANIMS[s.src.kind](c, CW, CH, r.animT, s.params.hue, s);
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
 }
 
-/* ---------- maschera ---------- */
-const MW = 960, MH = 540;
-const maskC = document.createElement('canvas'); maskC.width = MW; maskC.height = MH;
-const mx = maskC.getContext('2d');
-const maskActive = () => S.mask.on && S.mask.pts.length >= 3;
-function drawMask() {
-  if (!maskActive()) { mx.fillStyle = '#fff'; mx.fillRect(0, 0, MW, MH); return; }
-  mx.fillStyle = '#000'; mx.fillRect(0, 0, MW, MH);
-  mx.fillStyle = '#fff'; mx.beginPath();
-  S.mask.pts.forEach(([x, y], i) => i ? mx.lineTo(x * MW, y * MH) : mx.moveTo(x * MW, y * MH));
-  mx.closePath(); mx.fill();
+/* ---------- maschera (con sfumatura del bordo) ---------- */
+const maskActive = s => s.mask.on && s.mask.pts.length >= 3;
+function drawMask(s, r) {
+  const m = r.mx;
+  // maschera nel canale alpha: trasparente = nero, bianco opaco = visibile
+  m.setTransform(1, 0, 0, 1, 0, 0); m.shadowBlur = 0; m.shadowColor = 'transparent'; m.shadowOffsetX = 0;
+  m.clearRect(0, 0, MW, MH);
+  if (!maskActive(s)) { m.fillStyle = '#fff'; m.fillRect(0, 0, MW, MH); return; }
+  const f = s.mask.feather, dx = f > 0 ? -MW * 2 : 0; // con sfumatura: il poligono sta fuori tela, conta solo la sua ombra
+  if (f > 0) { m.shadowColor = '#fff'; m.shadowBlur = f * 2; m.shadowOffsetX = MW * 2; }
+  m.fillStyle = '#fff'; m.beginPath();
+  s.mask.pts.forEach(([x, y], i) => i ? m.lineTo(x * MW + dx, y * MH) : m.moveTo(x * MW + dx, y * MH));
+  m.closePath(); m.fill();
+  m.shadowBlur = 0; m.shadowColor = 'transparent'; m.shadowOffsetX = 0;
 }
 
 /* ---------- rendering: WebGL con fallback 2D ---------- */
-const canvas = $('stage');
-let gl = null, ctx2 = null, glLost = false, prog, bufV, bufI, texC, texM, geom = null, idxCount = 0, loc = {};
 const VS = 'attribute vec3 a_p;attribute vec2 a_uv;varying vec2 v_uv;void main(){gl_Position=vec4(a_p.xy,0.0,a_p.z);v_uv=a_uv;}';
 const FS = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n' +
   'varying vec2 v_uv;uniform sampler2D u_tex;uniform sampler2D u_mask;uniform vec2 u_res;uniform float u_b;' +
-  'void main(){float k=texture2D(u_mask,vec2(gl_FragCoord.x/u_res.x,1.0-gl_FragCoord.y/u_res.y)).r;' +
+  'void main(){float k=texture2D(u_mask,vec2(gl_FragCoord.x/u_res.x,1.0-gl_FragCoord.y/u_res.y)).a;' +
   'gl_FragColor=vec4(texture2D(u_tex,v_uv).rgb*u_b*k,1.0);}';
 function setupGL() {
-  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+  const sh = (t, src) => { const o = gl.createShader(t); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
   prog = gl.createProgram();
   gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
   gl.linkProgram(prog);
@@ -504,11 +597,6 @@ function setupGL() {
   loc = { p: gl.getAttribLocation(prog, 'a_p'), uv: gl.getAttribLocation(prog, 'a_uv'),
     tex: gl.getUniformLocation(prog, 'u_tex'), mask: gl.getUniformLocation(prog, 'u_mask'),
     res: gl.getUniformLocation(prog, 'u_res'), b: gl.getUniformLocation(prog, 'u_b') };
-  bufV = gl.createBuffer(); bufI = gl.createBuffer();
-  const mk = () => { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); return t; };
-  texC = mk(); texM = mk();
 }
 function initRenderer() {
   if (!NOGL) {
@@ -520,94 +608,115 @@ function initRenderer() {
   gl = null; ctx2 = canvas.getContext('2d');
 }
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); glLost = true; });
-canvas.addEventListener('webglcontextrestored', () => { try { setupGL(); glLost = false; invalidate('all'); } catch (e) { glLost = true; } });
-
-let dirty = { geom: true, mask: true, content: true };
-function invalidate(w) {
-  if (w === 'all') dirty = { geom: true, mask: true, content: true };
-  else dirty[w] = true;
-}
-function renderGL() {
+canvas.addEventListener('webglcontextrestored', () => {
+  try {
+    setupGL(); glLost = false;
+    rt.forEach(r => { glInitSurface(r); r.upC = r.upM = true; r.d.geom = true; r.geom = null; });
+    compDirty = true;
+  } catch (e) { glLost = true; }
+});
+function renderGL(list) {
   if (glLost) return;
   gl.viewport(0, 0, canvas.width, canvas.height);
   gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
-  if (dirty.geom || !geom) {
-    geom = buildGeom(false); idxCount = geom.idx.length;
-    gl.bindBuffer(gl.ARRAY_BUFFER, bufV); gl.bufferData(gl.ARRAY_BUFFER, geom.verts, gl.DYNAMIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufI); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geom.idx, gl.DYNAMIC_DRAW);
-  }
   gl.useProgram(prog);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texC);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, content);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texM);
-  if (dirty.mask) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskC);
-  gl.uniform1i(loc.tex, 0); gl.uniform1i(loc.mask, 1);
-  gl.uniform2f(loc.res, canvas.width, canvas.height); gl.uniform1f(loc.b, S.params.bright);
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufV);
-  gl.enableVertexAttribArray(loc.p); gl.vertexAttribPointer(loc.p, 3, gl.FLOAT, false, 20, 0);
-  gl.enableVertexAttribArray(loc.uv); gl.vertexAttribPointer(loc.uv, 2, gl.FLOAT, false, 20, 12);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufI);
-  gl.drawElements(gl.TRIANGLES, idxCount, gl.UNSIGNED_SHORT, 0);
-}
-function render2D() {
-  const W = canvas.width, H = canvas.height, c = ctx2;
-  c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-  if (dirty.geom || !geom) geom = buildGeom(true);
-  const v = geom.verts, ix = geom.idx;
-  c.save();
-  if (maskActive()) { c.beginPath(); S.mask.pts.forEach(([x, y], i) => i ? c.lineTo(x * W, y * H) : c.moveTo(x * W, y * H)); c.closePath(); c.clip(); }
-  c.globalAlpha = S.params.bright;
-  for (let t = 0; t < ix.length; t += 3) {
-    const a = ix[t] * 5, b = ix[t + 1] * 5, d = ix[t + 2] * 5;
-    const dx0 = v[a] * W, dy0 = v[a + 1] * H, dx1 = v[b] * W, dy1 = v[b + 1] * H, dx2 = v[d] * W, dy2 = v[d + 1] * H;
-    const sx0 = v[a + 3] * CW, sy0 = v[a + 4] * CH, sx1 = v[b + 3] * CW, sy1 = v[b + 4] * CH, sx2 = v[d + 3] * CW, sy2 = v[d + 4] * CH;
-    const det = (sx1 - sx0) * (sy2 - sy0) - (sx2 - sx0) * (sy1 - sy0);
-    if (Math.abs(det) < 1e-9) continue;
-    const m0 = ((dx1 - dx0) * (sy2 - sy0) - (dx2 - dx0) * (sy1 - sy0)) / det;
-    const m1 = ((dy1 - dy0) * (sy2 - sy0) - (dy2 - dy0) * (sy1 - sy0)) / det;
-    const m2 = ((dx2 - dx0) * (sx1 - sx0) - (dx1 - dx0) * (sx2 - sx0)) / det;
-    const m3 = ((dy2 - dy0) * (sx1 - sx0) - (dy1 - dy0) * (sx2 - sx0)) / det;
-    const gx = (dx0 + dx1 + dx2) / 3, gy = (dy0 + dy1 + dy2) / 3;
-    const ex = (x, y) => { const l = Math.hypot(x - gx, y - gy) || 1; return [x + (x - gx) / l * .8, y + (y - gy) / l * .8]; };
-    c.save(); c.beginPath();
-    let p = ex(dx0, dy0); c.moveTo(p[0], p[1]); p = ex(dx1, dy1); c.lineTo(p[0], p[1]); p = ex(dx2, dy2); c.lineTo(p[0], p[1]);
-    c.closePath(); c.clip();
-    c.setTransform(m0, m1, m2, m3, dx0 - m0 * sx0 - m2 * sy0, dy0 - m1 * sx0 - m3 * sy0);
-    c.drawImage(content, 0, 0);
-    c.restore();
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); // le luci delle superfici si sommano
+  gl.uniform1i(loc.tex, 0); gl.uniform1i(loc.mask, 1); gl.uniform2f(loc.res, canvas.width, canvas.height);
+  for (const s of list) {
+    const r = R(s);
+    if (r.d.geom || !r.geom) {
+      r.geom = buildGeom(s, false); r.idxCount = r.geom.idx.length; r.d.geom = false;
+      gl.bindBuffer(gl.ARRAY_BUFFER, r.bufV); gl.bufferData(gl.ARRAY_BUFFER, r.geom.verts, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.bufI); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, r.geom.idx, gl.DYNAMIC_DRAW);
+    }
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, r.texC);
+    if (r.upC) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, r.content); r.upC = false; }
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, r.texM);
+    if (r.upM) { gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, r.maskC); r.upM = false; }
+    gl.uniform1f(loc.b, s.params.bright);
+    gl.bindBuffer(gl.ARRAY_BUFFER, r.bufV);
+    gl.enableVertexAttribArray(loc.p); gl.vertexAttribPointer(loc.p, 3, gl.FLOAT, false, 20, 0);
+    gl.enableVertexAttribArray(loc.uv); gl.vertexAttribPointer(loc.uv, 2, gl.FLOAT, false, 20, 12);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, r.bufI);
+    gl.drawElements(gl.TRIANGLES, r.idxCount, gl.UNSIGNED_SHORT, 0);
   }
-  c.restore();
+}
+let off = null, offx = null;
+function render2D(list) {
+  const W = canvas.width, H = canvas.height, c = ctx2;
+  if (!off || off.width !== W) { off = document.createElement('canvas'); off.width = W; off.height = H; offx = off.getContext('2d'); }
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+  for (const s of list) {
+    const r = R(s);
+    if (r.d.geom || !r.geom) { r.geom = buildGeom(s, true); r.d.geom = false; }
+    r.upC = r.upM = false;
+    const v = r.geom.verts, ix = r.geom.idx, o = offx;
+    o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = 'source-over'; o.clearRect(0, 0, W, H);
+    for (let t = 0; t < ix.length; t += 3) {
+      const a = ix[t] * 5, b = ix[t + 1] * 5, d = ix[t + 2] * 5;
+      const dx0 = v[a] * W, dy0 = v[a + 1] * H, dx1 = v[b] * W, dy1 = v[b + 1] * H, dx2 = v[d] * W, dy2 = v[d + 1] * H;
+      const sx0 = v[a + 3] * CW, sy0 = v[a + 4] * CH, sx1 = v[b + 3] * CW, sy1 = v[b + 4] * CH, sx2 = v[d + 3] * CW, sy2 = v[d + 4] * CH;
+      const det = (sx1 - sx0) * (sy2 - sy0) - (sx2 - sx0) * (sy1 - sy0);
+      if (Math.abs(det) < 1e-9) continue;
+      const m0 = ((dx1 - dx0) * (sy2 - sy0) - (dx2 - dx0) * (sy1 - sy0)) / det;
+      const m1 = ((dy1 - dy0) * (sy2 - sy0) - (dy2 - dy0) * (sy1 - sy0)) / det;
+      const m2 = ((dx2 - dx0) * (sx1 - sx0) - (dx1 - dx0) * (sx2 - sx0)) / det;
+      const m3 = ((dy2 - dy0) * (sx1 - sx0) - (dy1 - dy0) * (sx2 - sx0)) / det;
+      const gx = (dx0 + dx1 + dx2) / 3, gy = (dy0 + dy1 + dy2) / 3;
+      const ex = (x, y) => { const l = Math.hypot(x - gx, y - gy) || 1; return [x + (x - gx) / l * .8, y + (y - gy) / l * .8]; };
+      o.save(); o.beginPath();
+      let p = ex(dx0, dy0); o.moveTo(p[0], p[1]); p = ex(dx1, dy1); o.lineTo(p[0], p[1]); p = ex(dx2, dy2); o.lineTo(p[0], p[1]);
+      o.closePath(); o.clip();
+      o.setTransform(m0, m1, m2, m3, dx0 - m0 * sx0 - m2 * sy0, dy0 - m1 * sx0 - m3 * sy0);
+      o.drawImage(r.content, 0, 0);
+      o.restore();
+    }
+    o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = 'destination-in'; o.drawImage(r.maskC, 0, 0, W, H);
+    c.globalCompositeOperation = 'lighter'; c.globalAlpha = s.params.bright; c.drawImage(off, 0, 0);
+  }
+  c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
 }
 function setCanvasSize() {
-  const big = proj && !!gl;
+  const big = (proj || live) && !!gl;
   const w = big ? 1920 : 1280, h = big ? 1080 : 720;
-  if (canvas.width !== w) { canvas.width = w; canvas.height = h; invalidate('all'); }
+  if (canvas.width !== w) { canvas.width = w; canvas.height = h; compDirty = true; }
 }
 
 /* ---------- ciclo di frame ---------- */
-let last = 0;
-const isAnim = () => !calib && S.src.kind !== 'file';
-const videoLive = () => media && media.tagName === 'VIDEO' && !media.paused && !media.ended && media.readyState >= 2;
+let last = 0, ticks = 0;
+const videoLive = r => r.media && r.media.tagName === 'VIDEO' && !r.media.paused && !r.media.ended && r.media.readyState >= 2;
+const visible = () => calib ? [cur()] : S.surfaces.filter(s => s.on);
 function frame(ts) {
-  requestAnimationFrame(frame);
+  requestAnimationFrame(frame); ticks++;
   const dt = Math.min(.1, (ts - last) / 1000); last = ts;
-  let live = false;
-  if (isAnim()) {
-    if (S.params.loop || animT < CYCLE) { animT = S.params.loop ? animT + dt * S.params.speed : Math.min(CYCLE, animT + dt * S.params.speed); live = true; }
-  } else if (!calib && S.src.kind === 'file' && videoLive()) live = true;
-  if (!live && !dirty.geom && !dirty.mask && !dirty.content) return;
-  if (dirty.mask) drawMask();
-  drawContent();
-  if (gl) renderGL(); else render2D();
-  dirty = { geom: false, mask: false, content: false };
+  const list = visible();
+  let any = compDirty;
+  for (const s of list) {
+    const r = R(s), p = s.params;
+    if (!(calib && s === cur())) {
+      if (s.src.kind !== 'file') {
+        if (p.loop || r.animT < CYCLE) { r.animT = p.loop ? r.animT + dt * p.speed : Math.min(CYCLE, r.animT + dt * p.speed); r.d.content = true; }
+      } else if (videoLive(r)) r.d.content = true;
+    }
+    if (r.d.content || r.d.mask || r.d.geom) any = true;
+  }
+  if (!any) return;
+  for (const s of list) {
+    const r = R(s);
+    if (r.d.mask) { drawMask(s, r); r.upM = true; r.d.mask = false; }
+    if (r.d.content) { drawContent(s, r); r.upC = true; r.d.content = false; }
+  }
+  if (gl) renderGL(list); else render2D(list);
+  compDirty = false;
 }
 
 /* ---------- vista: layout, zoom, pan ---------- */
 const view = $('view'), wrap = $('wrap'), handlesEl = $('handles');
+const fs = () => proj || live;
 let vw = 0, vh = 0, base = { bx: 0, by: 0, bw: 1, bh: 1 }, vs = { s: 1, ox: 0, oy: 0 };
 function layout() {
   const r = view.getBoundingClientRect(); vw = r.width; vh = r.height;
-  const pad = proj ? 0 : 12, aw = Math.max(1, vw - pad * 2), ah = Math.max(1, vh - pad * 2);
+  const pad = fs() ? 0 : 12, aw = Math.max(1, vw - pad * 2), ah = Math.max(1, vh - pad * 2);
   const bw = Math.min(aw, ah * 16 / 9), bh = bw * 9 / 16;
   base = { bw, bh, bx: (vw - bw) / 2, by: (vh - bh) / 2 };
   wrap.style.width = bw + 'px'; wrap.style.height = bh + 'px';
@@ -623,7 +732,7 @@ function clampView() {
 }
 function applyView() {
   wrap.style.transform = `translate(${base.bx + vs.ox}px,${base.by + vs.oy}px) scale(${vs.s})`;
-  $('zoomReset').hidden = vs.s <= 1.0001 || proj;
+  $('zoomReset').hidden = vs.s <= 1.0001 || fs();
   scheduleOverlay();
 }
 function zoomTo(cxp, cyp, s2) {
@@ -635,54 +744,76 @@ const toScreen = p => [base.bx + vs.ox + p[0] * base.bw * vs.s, base.by + vs.oy 
 const fromScreen = (x, y) => [(x - base.bx - vs.ox) / (base.bw * vs.s), (y - base.by - vs.oy) / (base.bh * vs.s)];
 
 /* ---------- overlay: linee e maniglie ---------- */
-const editPts = () => tab === 'warp' ? (S.mode === 'mesh' && S.mesh ? S.mesh.pts : S.quad) : tab === 'mask' ? S.mask.pts : null;
+const editPts = () => {
+  const s = cur();
+  return tab === 'warp' ? (s.mode === 'mesh' && s.mesh ? s.mesh.pts : s.quad) : tab === 'mask' ? s.mask.pts : null;
+};
 let ovQueued = false;
 function scheduleOverlay() { if (!ovQueued) { ovQueued = true; requestAnimationFrame(() => { ovQueued = false; updateOverlay(); }); } }
 function rebuildHandles() {
   handlesEl.textContent = '';
   const pts = editPts();
   if (pts && !proj) {
+    const s = cur();
     pts.forEach((_, i) => {
       const h = document.createElement('div'); h.className = 'h' + (tab === 'mask' ? ' m' : ''); h.dataset.i = i;
       h.appendChild(document.createElement('i'));
-      if (tab === 'warp' && S.mode === 'quad') { const b = document.createElement('b'); b.textContent = i + 1; h.appendChild(b); }
+      if (tab === 'warp' && s.mode === 'quad') { const b = document.createElement('b'); b.textContent = i + 1; h.appendChild(b); }
       handlesEl.appendChild(h);
     });
   }
   updateSelUI(); scheduleOverlay();
 }
+const outline = s => {
+  if (s.mode === 'mesh' && s.mesh) {
+    const n = s.mesh.n, p = s.mesh.pts, o = [];
+    for (let i = 0; i < n; i++) o.push(p[i]);
+    for (let j = 1; j < n; j++) o.push(p[j * n + n - 1]);
+    for (let i = n - 2; i >= 0; i--) o.push(p[(n - 1) * n + i]);
+    for (let j = n - 2; j > 0; j--) o.push(p[j * n]);
+    return o;
+  }
+  return s.quad;
+};
 function updateOverlay() {
-  const pts = editPts(), hs = handlesEl.children;
+  const pts = editPts(), hs = handlesEl.children, s = cur();
   if (pts) for (let i = 0; i < hs.length && i < pts.length; i++) {
     const [x, y] = toScreen(pts[i]);
     hs[i].style.transform = `translate(${x - 22}px,${y - 22}px)`;
     hs[i].classList.toggle('sel', i === sel);
   }
   const fmt = p => { const [x, y] = toScreen(p); return x.toFixed(1) + ',' + y.toFixed(1); };
-  const q = $('lnQuad'), m = $('lnMesh'), k = $('lnMask');
-  [q, m, k].forEach(el => el.toggleAttribute('hidden', true));
+  const q = $('lnQuad'), m = $('lnMesh'), k = $('lnMask'), o = $('lnOthers');
+  [q, m, k, o].forEach(el => el.toggleAttribute('hidden', true));
+  if (proj) return;
   if (tab === 'warp' || tab === 'mask') {
     const faint = tab === 'mask';
-    if (S.mode === 'quad' || !S.mesh) { q.removeAttribute('hidden'); q.setAttribute('points', S.quad.map(fmt).join(' ')); q.classList.toggle('faint', faint); }
+    if (s.mode === 'quad' || !s.mesh) { q.removeAttribute('hidden'); q.setAttribute('points', s.quad.map(fmt).join(' ')); q.classList.toggle('faint', faint); }
     else {
-      const n = S.mesh.n; let d = '';
-      for (let j = 0; j < n; j++) { for (let i = 0; i < n; i++) d += (i ? 'L' : 'M') + fmt(S.mesh.pts[j * n + i]); }
-      for (let i = 0; i < n; i++) { for (let j = 0; j < n; j++) d += (j ? 'L' : 'M') + fmt(S.mesh.pts[j * n + i]); }
-      m.removeAttribute('hidden'); m.setAttribute('d', d.replace(/([ML])(-?[\d.]+),(-?[\d.]+)/g, '$1$2 $3')); m.classList.toggle('faint', faint);
+      const n = s.mesh.n; let d = '';
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d += (i ? 'L' : 'M') + fmt(s.mesh.pts[j * n + i]).replace(',', ' ');
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) d += (j ? 'L' : 'M') + fmt(s.mesh.pts[j * n + i]).replace(',', ' ');
+      m.removeAttribute('hidden'); m.setAttribute('d', d); m.classList.toggle('faint', faint);
+    }
+    const others = S.surfaces.filter(x => x !== s && x.on);
+    if (others.length) {
+      o.removeAttribute('hidden');
+      o.setAttribute('d', others.map(x => outline(x).map((p, i) => (i ? 'L' : 'M') + fmt(p).replace(',', ' ')).join('') + 'Z').join(''));
     }
   }
-  if (tab === 'mask' && S.mask.pts.length) {
-    k.removeAttribute('hidden'); k.setAttribute('points', S.mask.pts.map(fmt).join(' ')); k.classList.toggle('closed', S.mask.pts.length >= 3);
+  if (tab === 'mask' && s.mask.pts.length) {
+    k.removeAttribute('hidden'); k.setAttribute('points', s.mask.pts.map(fmt).join(' ')); k.classList.toggle('closed', s.mask.pts.length >= 3);
   }
 }
 function updateSelUI() {
-  const pts = editPts(), ok = !!pts && sel >= 0 && sel < pts.length;
+  const pts = editPts(), s = cur(), ok = !!pts && sel >= 0 && sel < pts.length;
   $$('[data-nudge]').forEach(b => b.disabled = !ok);
   $('selInfo').textContent = ok ? `Punto ${sel + 1} selezionato` : 'Tocca un punto per selezionarlo';
-  $('btnMaskDel').disabled = tab === 'mask' && !S.mask.pts.length;
-  $('btnMaskClear').disabled = !S.mask.pts.length;
-  $('maskHint').textContent = S.mask.pts.length
-    ? `${S.mask.pts.length} ${S.mask.pts.length === 1 ? 'punto' : 'punti'}${S.mask.pts.length < 3 ? ': ne servono almeno 3' : ''}. Tocca per aggiungerne, trascina per spostare.`
+  $('btnMaskDel').disabled = !s.mask.pts.length;
+  $('btnMaskClear').disabled = !s.mask.pts.length;
+  const n = s.mask.pts.length;
+  $('maskHint').textContent = n
+    ? `${n} ${n === 1 ? 'punto' : 'punti'}${n < 3 ? ': ne servono almeno 3' : ''}. Tocca per aggiungerne, trascina per spostare.`
     : 'Nessuna maschera: tutta l\'area deformata è illuminata. Tocca l\'anteprima per tracciare il contorno.';
 }
 
@@ -690,11 +821,11 @@ function updateSelUI() {
 const ptrs = new Map(); let pinch = null, tapInfo = null, drag = null, longTimer = null;
 const rel = e => { const r = view.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 view.addEventListener('pointerdown', e => {
-  if (!proj && e.target.closest && e.target.closest('button')) return;
   if (proj) {
     const [x, y] = rel(e); tapInfo = { x, y };
-    clearTimeout(longTimer); longTimer = setTimeout(stopProj, 900); return;
+    clearTimeout(longTimer); longTimer = setTimeout(leaveFS, 900); return;
   }
+  if (e.target.closest && e.target.closest('button,#surfBar,#surfMenu')) return;
   const h = e.target.closest && e.target.closest('.h');
   if (h && !drag && ptrs.size === 0) {
     const pts = editPts(); const i = +h.dataset.i; if (!pts || !pts[i]) return;
@@ -705,8 +836,11 @@ view.addEventListener('pointerdown', e => {
   if (h) return;
   view.setPointerCapture(e.pointerId);
   const [x, y] = rel(e); ptrs.set(e.pointerId, { x, y });
-  if (ptrs.size === 1) tapInfo = { x, y, t: performance.now(), moved: false, pinched: false, ox: vs.ox, oy: vs.oy };
-  if (ptrs.size === 2) {
+  if (ptrs.size === 1) {
+    tapInfo = { x, y, t: performance.now(), moved: false, pinched: false };
+    if (live) { clearTimeout(longTimer); longTimer = setTimeout(leaveFS, 900); } // tocco lungo sullo sfondo: esci
+  }
+  if (ptrs.size === 2 && !live) {
     const [a, b] = [...ptrs.values()];
     pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, s: vs.s, tx: base.bx + vs.ox, ty: base.by + vs.oy };
     if (tapInfo) tapInfo.pinched = true;
@@ -729,7 +863,7 @@ view.addEventListener('pointermove', e => {
     vs.s = s2; vs.ox = ccx - (pinch.cx - pinch.tx) * k - base.bx; vs.oy = ccy - (pinch.cy - pinch.ty) * k - base.by;
     clampView(); applyView(); return;
   }
-  if (tapInfo && Math.hypot(x - tapInfo.x, y - tapInfo.y) > 8) tapInfo.moved = true;
+  if (tapInfo && Math.hypot(x - tapInfo.x, y - tapInfo.y) > 8) { tapInfo.moved = true; clearTimeout(longTimer); }
   if (vs.s > 1 && ptrs.size === 1 && tapInfo && tapInfo.moved) { vs.ox += x - px; vs.oy += y - py; clampView(); applyView(); }
 });
 function endPtr(e) {
@@ -739,20 +873,20 @@ function endPtr(e) {
   const was = tapInfo; ptrs.delete(e.pointerId);
   if (ptrs.size < 2) pinch = null;
   if (ptrs.size === 0 && was && e.type === 'pointerup' && !was.moved && !was.pinched && performance.now() - was.t < 400) {
-    const n = fromScreen(was.x, was.y);
-    if (tab === 'mask' && n[0] >= -.02 && n[0] <= 1.02 && n[1] >= -.02 && n[1] <= 1.02 && S.mask.pts.length < 64) {
-      addMaskPoint([clamp(n[0], 0, 1), clamp(n[1], 0, 1)]); rebuildHandles(); changed('mask');
+    const n = fromScreen(was.x, was.y), s = cur();
+    if (tab === 'mask' && n[0] >= -.02 && n[0] <= 1.02 && n[1] >= -.02 && n[1] <= 1.02 && s.mask.pts.length < 64) {
+      addMaskPoint(s, [clamp(n[0], 0, 1), clamp(n[1], 0, 1)]); rebuildHandles(); changed('mask');
     } else if (sel !== -1) { sel = -1; updateSelUI(); scheduleOverlay(); }
   }
   if (ptrs.size === 0) tapInfo = null;
 }
 view.addEventListener('pointerup', endPtr); view.addEventListener('pointercancel', endPtr);
-view.addEventListener('wheel', e => { if (proj) return; e.preventDefault(); const [x, y] = rel(e); zoomTo(x, y, vs.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
-view.addEventListener('contextmenu', e => { if (proj) e.preventDefault(); });
+view.addEventListener('wheel', e => { if (fs()) return; e.preventDefault(); const [x, y] = rel(e); zoomTo(x, y, vs.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
+view.addEventListener('contextmenu', e => { if (fs()) e.preventDefault(); });
 $('zoomReset').addEventListener('click', () => { vs = { s: 1, ox: 0, oy: 0 }; applyView(); });
 
-function addMaskPoint(p) {
-  const a = S.mask.pts;
+function addMaskPoint(s, p) {
+  const a = s.mask.pts;
   if (a.length < 3) { a.push(p); sel = a.length - 1; return; }
   let best = 0, bd = Infinity;
   for (let i = 0; i < a.length; i++) {
@@ -768,7 +902,7 @@ function addMaskPoint(p) {
 /* ---------- salvataggio ---------- */
 let saveTimer = 0;
 function changed(w) {
-  invalidate(w); scheduleOverlay();
+  inv(cur(), w); scheduleOverlay();
   clearTimeout(saveTimer); saveTimer = setTimeout(() => store.set(LS_CUR, serialize()), 400);
 }
 function loadProjects() {
@@ -780,11 +914,11 @@ function loadProjects() {
     return { name: x.name.slice(0, 40), ts: Number.isFinite(x.ts) ? x.ts : 0, data };
   }).filter(Boolean);
 }
-const saveProjects = list => store.set(LS_PRJ, JSON.stringify(list.map(p => ({ name: p.name, ts: p.ts, data: JSON.parse(serializeOf(p.data)) }))));
-const serializeOf = d => JSON.stringify({ app: 'proiettore', version: 1, ...d });
+const saveProjects = list => store.set(LS_PRJ, JSON.stringify(list.map(p => ({ name: p.name, ts: p.ts, data: plain(p.data) }))));
 function applyState(d) {
-  S = d; sel = -1;
-  syncUI(); rebuildHandles(); invalidate('all'); animT = 0;
+  Array.from(rt.keys()).forEach(disposeRT);
+  S = d; sel = -1; compDirty = true;
+  syncUI(); rebuildHandles(); invAll('all');
   store.set(LS_CUR, serialize());
 }
 function renderProjects() {
@@ -793,15 +927,15 @@ function renderProjects() {
   list.forEach((p, i) => {
     const li = document.createElement('li'), box = document.createElement('div');
     const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.name;
-    const sm = document.createElement('small'); sm.textContent = p.ts ? new Date(p.ts).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    const sm = document.createElement('small'); sm.textContent = (p.data.surfaces.length > 1 ? p.data.surfaces.length + ' superfici · ' : '') + (p.ts ? new Date(p.ts).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' }) : '');
     box.append(nm, sm);
     const load = document.createElement('button'); load.className = 'btn'; load.textContent = 'Carica';
-    load.onclick = () => { applyState(sanitize(JSON.parse(serializeOf(p.data)))); $('sheet').hidden = true; toast(`Caricato «${p.name}»`); };
+    load.onclick = () => { applyState(sanitize(plain(p.data))); $('sheet').hidden = true; toast(`Caricato «${p.name}»`); };
     const del = document.createElement('button'); del.className = 'btn danger'; del.textContent = 'Elimina';
     let armed = false;
     del.onclick = () => {
       if (!armed) { armed = true; del.textContent = 'Conferma'; setTimeout(() => { armed = false; del.textContent = 'Elimina'; }, 2500); return; }
-      const cur = loadProjects(); cur.splice(i, 1); saveProjects(cur); renderProjects();
+      const cur2 = loadProjects(); cur2.splice(i, 1); saveProjects(cur2); renderProjects();
     };
     li.append(box, load, del); ul.appendChild(li);
   });
@@ -842,18 +976,15 @@ $('fileJson').onchange = async e => {
 
 /* ---------- file media e foto ---------- */
 function setFileInfo(msg, bad) { const el = $('fileInfo'); el.textContent = msg; el.className = bad ? 'err' : 'hint'; }
-function dropMedia() {
-  if (media && media.tagName === 'VIDEO') { try { media.pause(); media.removeAttribute('src'); media.load(); } catch (e) {} }
-  if (mediaUrl) URL.revokeObjectURL(mediaUrl); media = null; mediaUrl = null;
-}
 function loadMedia(f) {
   if (!f) return;
+  const s = cur(), r = R(s);
   if (!/^(video|image)\//.test(f.type)) { setFileInfo('File non valido: scegli un video o un\'immagine.', true); toast('File non valido', true); return; }
   const url = URL.createObjectURL(f), isV = f.type.startsWith('video/');
-  const ok = el => { dropMedia(); media = el; mediaUrl = url; S.src.kind = 'file'; setFileInfo(f.name, false); syncUI(); invalidate('content'); changed('content'); };
+  const ok = el => { dropMedia(r); r.media = el; r.mediaUrl = url; s.src.kind = 'file'; setFileInfo(f.name, false); syncUI(); inv(s, 'content'); changed('content'); };
   const fail = () => { URL.revokeObjectURL(url); setFileInfo('Impossibile leggere il file. Prova un altro formato (MP4, WebM, JPG, PNG).', true); toast('File non leggibile', true); };
   if (isV) {
-    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = S.params.loop; v.preload = 'auto'; v.playbackRate = S.params.speed;
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.loop = s.params.loop; v.preload = 'auto'; v.playbackRate = s.params.speed;
     v.onloadeddata = () => { ok(v); v.play().catch(() => {}); };
     v.onerror = fail; v.src = url;
   } else {
@@ -892,73 +1023,132 @@ function setTab(t) {
   tab = t; sel = -1;
   $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== t);
   $$('.bar button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'));
-  $('panel').scrollTop = 0; rebuildHandles(); layout();
+  $('panel').scrollTop = 0; rebuildHandles(); layout(); updateDiag();
 }
 $$('.bar button').forEach(b => b.onclick = () => setTab(b.dataset.tab));
 
 function bindSw(id, get, set) {
   const el = $(id); el.onclick = () => { set(!get()); el.setAttribute('aria-checked', String(get())); };
 }
+function rebuildStrip() {
+  const bar = $('surfBar'); bar.textContent = '';
+  S.surfaces.forEach((s, i) => {
+    const b = document.createElement('button'); b.className = 'sc' + (s.on ? '' : ' off'); b.dataset.i = i;
+    b.textContent = String(i + 1); b.setAttribute('aria-pressed', String(i === S.active)); b.setAttribute('aria-label', 'Superficie ' + (i + 1));
+    bar.appendChild(b);
+  });
+  if (S.surfaces.length < MAXS) {
+    const b = document.createElement('button'); b.className = 'sc add'; b.id = 'surfAdd'; b.textContent = '+'; b.setAttribute('aria-label', 'Aggiungi superficie');
+    bar.appendChild(b);
+  }
+  const s = cur();
+  $('mVis').textContent = s.on ? 'Nascondi' : 'Mostra';
+  $('mDup').disabled = S.surfaces.length >= MAXS;
+  $('mDel').disabled = S.surfaces.length <= 1;
+}
 function syncUI() {
-  const k = S.src.kind, p = S.params;
+  const s = cur(), r = R(s), k = s.src.kind, p = s.params;
+  rebuildStrip();
   $$('.tile').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.src === k)));
   $('boxText').hidden = k !== 'text'; $('boxFile').hidden = k !== 'file';
   $('boxHue').hidden = k === 'file';
-  $('inText').value = S.src.text;
+  $('inText').value = s.src.text;
   $('sSpeed').value = p.speed; $('oSpeed').textContent = p.speed.toFixed(2).replace(/0$/, '') + '×';
   $('sHue').value = p.hue; $('oHue').textContent = Math.round(p.hue) + '°';
   $('sBright').value = Math.round(p.bright * 100); $('oBright').textContent = Math.round(p.bright * 100) + '%';
   $('swLoop').setAttribute('aria-checked', String(p.loop));
   $('btnRestart').hidden = p.loop;
   $$('#segFit button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.fit === p.fit)));
-  $$('#segMode button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
-  $('segN').hidden = S.mode !== 'mesh';
-  $$('#segN button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === S.meshN)));
-  $('swMask').setAttribute('aria-checked', String(S.mask.on));
+  $$('#segMode button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode)));
+  $('segN').hidden = s.mode !== 'mesh'; $('rowSmooth').hidden = s.mode !== 'mesh';
+  $$('#segN button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === s.meshN)));
+  $('swSmooth').setAttribute('aria-checked', String(s.smooth));
+  $('swMask').setAttribute('aria-checked', String(s.mask.on));
+  $('sFeather').value = s.mask.feather; $('oFeather').textContent = s.mask.feather ? s.mask.feather + ' px' : 'nessuna';
   $('swCalib').setAttribute('aria-checked', String(calib));
-  if (k === 'file' && !media) setFileInfo('Nessun file caricato. Scegli un video o un\'immagine.', false);
+  if (k === 'file' && !r.media) setFileInfo('Nessun file caricato. Scegli un video o un\'immagine.', false);
+  else if (k === 'file' && r.media) setFileInfo('File caricato in questa superficie.', false);
   const ev = $('emptyView');
-  ev.hidden = !(k === 'file' && !media && !calib);
-  if (!ev.hidden) ev.textContent = 'Nessun file caricato. Vai su Contenuto e scegli un video o un\'immagine.';
-  $('projStatus').textContent = (gl ? 'Rendering WebGL.' : 'Rendering canvas 2D (WebGL non disponibile).') +
-    (k === 'file' && !media ? ' Attenzione: nessun file caricato, vedrai solo nero.' : '');
+  ev.hidden = !(k === 'file' && !r.media && !calib);
+  if (!ev.hidden) ev.textContent = 'Nessun file caricato in questa superficie. Vai su Contenuto e scegli un video o un\'immagine.';
+  const empties = S.surfaces.filter(x => x.on && x.src.kind === 'file' && !R(x).media).length;
+  $('projStatus').textContent = `${S.surfaces.filter(x => x.on).length} ${S.surfaces.filter(x => x.on).length === 1 ? 'superficie attiva' : 'superfici attive'}.` +
+    (empties ? ` Attenzione: ${empties} senza file caricato, resterà nera.` : '');
   updateSelUI();
 }
+function selectSurface(i) {
+  S.active = i; sel = -1; $('surfMenu').hidden = true;
+  syncUI(); rebuildHandles(); if (calib) invAll('content'); compDirty = true;
+  store.set(LS_CUR, serialize());
+}
+$('surfBar').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'surfAdd') {
+    const s = newSurface(S.surfaces.length); S.surfaces.push(s);
+    selectSurface(S.surfaces.length - 1); toast(`Superficie ${S.surfaces.length} aggiunta`); return;
+  }
+  const i = +b.dataset.i;
+  if (i === S.active) $('surfMenu').hidden = !$('surfMenu').hidden; else selectSurface(i);
+});
+$('mVis').onclick = () => { const s = cur(); s.on = !s.on; inv(s, 'all'); $('surfMenu').hidden = true; syncUI(); changed('content'); };
+$('mDup').onclick = () => {
+  if (S.surfaces.length >= MAXS) return;
+  const { id, ...c } = JSON.parse(JSON.stringify(cur()));
+  const s = { ...c, id: ++uid };
+  s.quad = s.quad.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
+  if (s.mesh) s.mesh.pts = s.mesh.pts.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
+  s.mask.pts = s.mask.pts.map(p => [clamp(p[0] + .03, -.1, 1.1), clamp(p[1] + .03, -.1, 1.1)]);
+  S.surfaces.push(s); selectSurface(S.surfaces.length - 1); changed('all'); toast('Superficie duplicata');
+};
+let delArmed = false;
+$('mDel').onclick = () => {
+  if (S.surfaces.length <= 1) return;
+  if (!delArmed) { delArmed = true; $('mDel').textContent = 'Conferma'; setTimeout(() => { delArmed = false; $('mDel').textContent = 'Elimina'; }, 2500); return; }
+  delArmed = false; $('mDel').textContent = 'Elimina';
+  const gone = S.surfaces.splice(S.active, 1)[0]; disposeRT(gone.id);
+  S.active = Math.min(S.active, S.surfaces.length - 1);
+  selectSurface(S.active); changed('content'); toast('Superficie eliminata');
+};
+
 $('tiles').addEventListener('click', e => {
   const t = e.target.closest('.tile'); if (!t) return;
-  S.src.kind = t.dataset.src; animT = 0; syncUI(); changed('content');
-  if (media && S.src.kind === 'file' && media.tagName === 'VIDEO') media.play().catch(() => {});
+  const s = cur(), r = R(s);
+  s.src.kind = t.dataset.src; r.animT = 0; syncUI(); changed('content');
+  if (r.media && s.src.kind === 'file' && r.media.tagName === 'VIDEO') r.media.play().catch(() => {});
 });
-$('inText').oninput = e => { S.src.text = e.target.value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 60); changed('content'); };
-$('sSpeed').oninput = e => { S.params.speed = +e.target.value; if (media && media.tagName === 'VIDEO') media.playbackRate = S.params.speed; syncUI(); changed('content'); };
-$('sHue').oninput = e => { S.params.hue = +e.target.value; syncUI(); changed('content'); };
-$('sBright').oninput = e => { S.params.bright = +e.target.value / 100; syncUI(); changed('content'); };
-bindSw('swLoop', () => S.params.loop, v => { S.params.loop = v; if (media && media.tagName === 'VIDEO') { media.loop = v; if (v) media.play().catch(() => {}); } syncUI(); changed('content'); });
-$('btnRestart').onclick = () => { animT = 0; if (media && media.tagName === 'VIDEO') { media.currentTime = 0; media.play().catch(() => {}); } invalidate('content'); };
-$('segFit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.params.fit = b.dataset.fit; syncUI(); changed('content'); });
+$('inText').oninput = e => { cur().src.text = e.target.value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 60); changed('content'); };
+$('sSpeed').oninput = e => { const s = cur(), r = R(s); s.params.speed = +e.target.value; if (r.media && r.media.tagName === 'VIDEO') r.media.playbackRate = s.params.speed; syncUI(); changed('content'); };
+$('sHue').oninput = e => { cur().params.hue = +e.target.value; syncUI(); changed('content'); };
+$('sBright').oninput = e => { cur().params.bright = +e.target.value / 100; syncUI(); changed('content'); };
+bindSw('swLoop', () => cur().params.loop, v => { const s = cur(), r = R(s); s.params.loop = v; if (r.media && r.media.tagName === 'VIDEO') { r.media.loop = v; if (v) r.media.play().catch(() => {}); } syncUI(); changed('content'); });
+$('btnRestart').onclick = () => { const s = cur(), r = R(s); r.animT = 0; if (r.media && r.media.tagName === 'VIDEO') { r.media.currentTime = 0; r.media.play().catch(() => {}); } inv(s, 'content'); };
+$('segFit').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; cur().params.fit = b.dataset.fit; syncUI(); changed('content'); });
 
 $('segMode').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b || b.dataset.mode === S.mode) return;
-  if (b.dataset.mode === 'mesh') { if (!S.mesh) S.mesh = meshFromQuad(S.meshN); S.mode = 'mesh'; } else S.mode = 'quad';
-  sel = -1; syncUI(); rebuildHandles(); changed('geom'); if (calib) invalidate('content');
+  const b = e.target.closest('button'), s = cur(); if (!b || b.dataset.mode === s.mode) return;
+  if (b.dataset.mode === 'mesh') { if (!s.mesh) s.mesh = meshFromQuad(s, s.meshN); s.mode = 'mesh'; } else s.mode = 'quad';
+  sel = -1; syncUI(); rebuildHandles(); changed('geom'); if (calib) inv(s, 'content');
 });
 $('segN').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  const n = +b.dataset.n; if (S.mesh && S.mesh.n !== n) S.mesh = resampleMesh(S.mesh, n);
-  S.meshN = n; sel = -1; syncUI(); rebuildHandles(); changed('geom'); invalidate('content');
+  const b = e.target.closest('button'), s = cur(); if (!b) return;
+  const n = +b.dataset.n; if (s.mesh && s.mesh.n !== n) s.mesh = resampleMesh(s.mesh, n, s.smooth);
+  s.meshN = n; sel = -1; syncUI(); rebuildHandles(); changed('geom'); inv(s, 'content');
 });
-bindSw('swCalib', () => calib, v => { calib = v; syncUI(); invalidate('content'); });
+bindSw('swSmooth', () => cur().smooth, v => { cur().smooth = v; changed('geom'); });
+bindSw('swCalib', () => calib, v => { calib = v; syncUI(); invAll('content'); });
 $('btnReset').onclick = () => {
-  S.quad = DEF().quad;
-  if (S.mode === 'mesh') S.mesh = meshFromQuad(S.mesh.n);
+  const s = cur(), b = BOX[S.active % MAXS];
+  s.quad = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+  if (s.mode === 'mesh') s.mesh = meshFromQuad(s, s.mesh.n);
   sel = -1; rebuildHandles(); changed('geom');
 };
-bindSw('swMask', () => S.mask.on, v => { S.mask.on = v; changed('mask'); });
+bindSw('swMask', () => cur().mask.on, v => { cur().mask.on = v; changed('mask'); });
+$('sFeather').oninput = e => { cur().mask.feather = +e.target.value; syncUI(); changed('mask'); };
 $('btnMaskDel').onclick = () => {
-  const a = S.mask.pts; if (!a.length) return;
+  const a = cur().mask.pts; if (!a.length) return;
   a.splice(sel >= 0 && sel < a.length ? sel : a.length - 1, 1); sel = -1; rebuildHandles(); changed('mask');
 };
-$('btnMaskClear').onclick = () => { S.mask.pts = []; sel = -1; rebuildHandles(); changed('mask'); };
+$('btnMaskClear').onclick = () => { cur().mask.pts = []; sel = -1; rebuildHandles(); changed('mask'); };
 
 /* spostamento fine del punto selezionato (pulsanti e frecce) */
 function nudge(dir) {
@@ -975,49 +1165,56 @@ document.addEventListener('pointerdown', e => {
 });
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => document.addEventListener(t, () => { clearTimeout(nudgeT); clearInterval(nudgeI); }));
 document.addEventListener('keydown', e => {
-  if (proj) { if (e.key === 'Escape') stopProj(); return; }
+  if (fs()) { if (e.key === 'Escape') leaveFS(); else if (live) arrow(e); return; }
   if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName) && e.target.type !== 'range') return;
-  const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd' }[e.key];
-  if (m && sel >= 0) { e.preventDefault(); for (let i = 0; i < (e.shiftKey ? 10 : 1); i++) nudge(m); }
+  arrow(e);
   if (e.key === 'Escape') $('sheet').hidden = true;
 });
+function arrow(e) {
+  const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd' }[e.key];
+  if (m && sel >= 0) { e.preventDefault(); for (let i = 0; i < (e.shiftKey ? 10 : 1); i++) nudge(m); }
+}
 
-/* ---------- modalità proiezione ---------- */
+/* ---------- schermo intero: proiezione e calibrazione dal vivo ---------- */
 let wl = null, fsUsed = false;
 async function lockScreen() { try { if ('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch (e) { wl = null; } }
 function unlockScreen() { try { if (wl) wl.release(); } catch (e) {} wl = null; }
-document.addEventListener('visibilitychange', () => { if (proj && document.visibilityState === 'visible') lockScreen(); });
-function startProj() {
-  proj = true; fsUsed = false;
+document.addEventListener('visibilitychange', () => { if (fs() && document.visibilityState === 'visible') lockScreen(); });
+function enterFS(asLive) {
+  proj = !asLive; live = asLive; fsUsed = false;
   try {
     const de = document.documentElement;
     if (de.requestFullscreen) de.requestFullscreen({ navigationUI: 'hide' }).then(() => { fsUsed = true; }).catch(() => {});
   } catch (e) {}
-  document.body.classList.add('proj'); $('sheet').hidden = true;
-  vs = { s: 1, ox: 0, oy: 0 }; setCanvasSize(); rebuildHandles(); layout(); lockScreen(); invalidate('all');
-  if (media && media.tagName === 'VIDEO') media.play().catch(() => {});
+  if (asLive) { calibBefore = calib; calib = true; }
+  document.body.classList.add(asLive ? 'live' : 'proj'); $('sheet').hidden = true; $('surfMenu').hidden = true;
+  vs = { s: 1, ox: 0, oy: 0 }; setCanvasSize(); rebuildHandles(); layout(); lockScreen(); invAll('content'); compDirty = true;
+  Array.from(rt.values()).forEach(r => { if (r.media && r.media.tagName === 'VIDEO') r.media.play().catch(() => {}); });
 }
-function stopProj() {
-  if (!proj) return;
-  clearTimeout(longTimer); proj = false; fsUsed = false;
-  document.body.classList.remove('proj');
+function leaveFS() {
+  if (!fs()) return;
+  clearTimeout(longTimer);
+  if (live) { calib = calibBefore; }
+  proj = false; live = false; fsUsed = false;
+  document.body.classList.remove('proj', 'live');
   try { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); } catch (e) {}
-  unlockScreen(); setCanvasSize(); rebuildHandles(); layout(); invalidate('all');
+  unlockScreen(); setCanvasSize(); syncUI(); rebuildHandles(); layout(); invAll('content'); compDirty = true;
 }
-document.addEventListener('fullscreenchange', () => { if (proj && fsUsed && !document.fullscreenElement) stopProj(); });
-$('btnGo').onclick = startProj;
+document.addEventListener('fullscreenchange', () => { if (fs() && fsUsed && !document.fullscreenElement) leaveFS(); });
+$('btnGo').onclick = () => enterFS(false);
+$('btnLive').onclick = () => enterFS(true);
+$('btnLive2').onclick = () => enterFS(true);
+$('liveExit').onclick = leaveFS;
 
-/* ---------- avvio ---------- */
-window.addEventListener('resize', layout);
-if (window.ResizeObserver) new ResizeObserver(layout).observe(view);
-initRenderer();
-if (!gl) { $('glNote').hidden = false; $('glNote').textContent = NOGL ? 'Canvas 2D' : 'WebGL non disponibile: uso canvas 2D'; }
-{
-  const raw = store.get(LS_CUR);
-  if (raw) { try { const d = sanitize(JSON.parse(raw)); if (d) S = d; } catch (e) {} }
+/* ---------- diagnostica (per provare il dispositivo) ---------- */
+let lastTicks = 0;
+function updateDiag() {
+  if (tab !== 'proj' || fs()) return;
+  const fps = Math.round(ticks - lastTicks); lastTicks = ticks;
+  const yn = v => v ? 'sì' : 'no';
+  $('diag').textContent = `WebGL: ${yn(gl)} · Schermo intero: ${yn(document.documentElement.requestFullscreen)} · Wake Lock: ${yn('wakeLock' in navigator)} · ${fps} fotogrammi/s`;
 }
-setCanvasSize(); syncUI(); setTab('content'); layout();
-requestAnimationFrame(frame);
+setInterval(updateDiag, 1000);
 
 /* ---------- installazione e aggiornamenti (PWA) ---------- */
 let installEv = null;
@@ -1057,6 +1254,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
   setInterval(check, 3600000);
 }
+
+/* ---------- avvio ---------- */
+window.addEventListener('resize', layout);
+if (window.ResizeObserver) new ResizeObserver(layout).observe(view);
+initRenderer();
+if (!gl) { $('glNote').hidden = false; $('glNote').textContent = NOGL ? 'Canvas 2D' : 'WebGL non disponibile: uso canvas 2D'; }
+{
+  const raw = store.get(LS_CUR);
+  if (raw) { try { const d = sanitize(JSON.parse(raw)); if (d) S = d; } catch (e) {} }
+}
+setCanvasSize(); syncUI(); setTab('content'); layout();
+requestAnimationFrame(frame);
 })();
 </script>
 </body>
